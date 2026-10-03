@@ -155,10 +155,9 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            // Standar Profesional: PBR & Physically Correct Lighting
-            renderer.physicallyCorrectLights = true; // Cahaya menyebar secara realistis dengan hukum fisika kuadrat terbalik
-            renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.2; // Sedikit dinaikkan untuk mengimbangi Physically Correct Lights
+            // Standar SketchUp: Cahaya merata (Matte), tidak silau/over-exposure
+            renderer.physicallyCorrectLights = false; 
+            renderer.toneMapping = THREE.NoToneMapping; 
             renderer.outputEncoding = THREE.sRGBEncoding;
             container.appendChild(renderer.domElement);
 
@@ -192,21 +191,22 @@
         }
 
         function setupLighting() {
-            // Standar Profesional: HemiLight untuk Global Illumination (Pantulan langit dan tanah)
-            const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x444444, 3.0); // Intensitas dinaikkan untuk Physical Lights
+            // Standar SketchUp: Ambient Light terang merata tanpa silau berlebih
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x888888, 0.7); 
             hemiLight.position.set(0, 100, 0);
             scene.add(hemiLight);
 
-            // Directional light (Matahari) - Warna hangat matahari sore/pagi
-            const dirLight = new THREE.DirectionalLight(0xffeedd, 8.0);
+            // Directional light (Matahari) - Cahaya matahari tegas wajar untuk SketchUp
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
             dirLight.position.set(50, 80, 40);
             dirLight.castShadow = true;
-            // Ultra-High Resolution Shadows untuk realisme maksimal
-            dirLight.shadow.mapSize.width = 4096;
-            dirLight.shadow.mapSize.height = 4096;
+            
+            // Shadow map standar
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
             dirLight.shadow.camera.near = 0.5;
             dirLight.shadow.camera.far = 200;
-            dirLight.shadow.bias = -0.0005; // Mencegah shadow acne (garis-garis hitam pada permukaan datar)
+            dirLight.shadow.bias = -0.001; 
             
             // Area bayangan mencakup seluruh gudang
             dirLight.shadow.camera.left = -20;
@@ -215,23 +215,8 @@
             dirLight.shadow.camera.bottom = -20;
             scene.add(dirLight);
 
-            // Lampu interior (Simulasi lampu gantung High-Bay industri di atap)
-            // Disebar merata di dalam area bangunan
-            for(let x = 12; x < WAREHOUSE_LENGTH; x += 18) {
-                for(let z = 6; z < WAREHOUSE_WIDTH; z += 6) {
-                    // PointLight dengan color, intensity, distance, decay (2 = realistis fisik)
-                    const pointLight = new THREE.PointLight(0xfff5e6, 150, 40, 2); 
-                    pointLight.position.set(x, ROOF_HEIGHT - 1, z);
-                    scene.add(pointLight);
-                    
-                    // Visualisasi bohlam lampunya (Kecil bercahaya)
-                    const bulbGeo = new THREE.SphereGeometry(0.2, 8, 8);
-                    const bulbMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-                    const bulb = new THREE.Mesh(bulbGeo, bulbMat);
-                    bulb.position.copy(pointLight.position);
-                    scene.add(bulb);
-                }
-            }
+            // Catatan: Lampu bohlam (PointLight) interior dihilangkan karena pada gaya SketchUp, 
+            // presentasi visual lebih mengandalkan Ambient/Sun light agar bersih, jelas, dan tidak silau.
         }
 
         function buildWarehouse() {
@@ -250,8 +235,8 @@
             const floorGeo = new THREE.BoxGeometry(WAREHOUSE_LENGTH, slabThickness, WAREHOUSE_WIDTH);
             const floorMat = new THREE.MeshStandardMaterial({ 
                 color: colors.floor,
-                roughness: 0.15, // Dibuat sangat glossy (Simulasi cat lantai Epoksi industri)
-                metalness: 0.25  // Menambah sifat memantulkan cahaya pada lantai
+                roughness: 1.0, // Dibuat matte/kasar khas SketchUp
+                metalness: 0.0  // Menghilangkan pantulan cahaya penyebab silau
             });
             const floor = new THREE.Mesh(floorGeo, floorMat);
             // Posisikan origin agar permukaan atas ada di Y=0
