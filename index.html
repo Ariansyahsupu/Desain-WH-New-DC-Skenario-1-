@@ -543,13 +543,14 @@
         }
 
         function buildRacks() {
-            function createRackRow(x, z, width, depth, levels, frameColorStr, shelfColorStr, isDouble = false) {
-                const height = 4.5; // Tinggi rak
+            function createRackRow(x, z, width, depth, levels, frameColorStr, shelfColorStr, isDouble = false, customHeight = 4.5, yOffset = 0) {
+                const height = customHeight; // Tinggi rak bisa disesuaikan
                 const levelHeight = height / levels;
                 const mat = new THREE.MeshStandardMaterial({ color: frameColorStr });
                 
                 const rackGroup = new THREE.Group();
-                rackGroup.position.set(x + width/2, 0, z + depth/2);
+                // Mengatur offset Y agar bisa dinaikkan ke lantai 2
+                rackGroup.position.set(x + width/2, yOffset, z + depth/2);
 
                 const rackGeo = new THREE.BoxGeometry(width, height, depth);
                 const rackMesh = new THREE.Mesh(rackGeo, mat);
@@ -580,18 +581,18 @@
             let currentX = 1; 
             
             const single90Width = 0.9;
-            createRackRow(currentX, slowZStart, single90Width, slowRackDepth, 4, colors.rackHeavyFrame, colors.rackHeavyBeam);
+            createRackRow(currentX, slowZStart, single90Width, slowRackDepth, 4, colors.rackHeavyFrame, colors.rackHeavyBeam, false, 4.5, 0);
             
             const aisleForklift = 4.8;
             currentX += single90Width + aisleForklift;
 
             const double180Width = 1.8;
             for(let i=0; i<5; i++) {
-                createRackRow(currentX, slowZStart, double180Width, slowRackDepth, 4, colors.rackHeavyFrame, colors.rackHeavyBeam, true);
+                createRackRow(currentX, slowZStart, double180Width, slowRackDepth, 4, colors.rackHeavyFrame, colors.rackHeavyBeam, true, 4.5, 0);
                 currentX += double180Width + aisleForklift;
             }
 
-            // --- ZONA 2: RACKING AREA (Small Duty/Fast Moving - Shelving) ---
+            // --- ZONA 2: RACKING AREA (Small Duty/Fast Moving) + MEZZANINE 2 LANTAI ---
             let fastStartX = 36.85; 
             const fastRackDepthHalf = 5.75; 
             const fastZStartTop = 8.5; 
@@ -599,24 +600,51 @@
             const fastZStartBottom = fastZStartTop + fastRackDepthHalf + aislePickingY;
             
             const aisle1m = 1.0; 
-            let xPos = fastStartX;
-
-            const fastSingle90Width = 0.9;
-            createRackRow(xPos, fastZStartTop, fastSingle90Width, fastRackDepthHalf, 3, colors.rackSmallFrame, colors.rackSmallShelf);
-            createRackRow(xPos, fastZStartBottom, fastSingle90Width, fastRackDepthHalf, 3, colors.rackSmallFrame, colors.rackSmallShelf);
             
-            xPos += fastSingle90Width + aisle1m;
+            // 1. Membuat Plat Lantai Mezzanine (Pemisah Lantai 1 dan 2)
+            const mezW = 22.5; // Lebar total area rak kecil
+            const mezD = 13.0; // Kedalaman total area rak (dari Z=8.5 ke 21.5)
+            const mezH = 2.5;  // Tinggi rak untuk setiap lantai mezzanine
+            const mezThickness = 0.1; // Ketebalan plat lantai
+            
+            const mezGeo = new THREE.BoxGeometry(mezW, mezThickness, mezD);
+            const mezMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 1.0 });
+            const mezFloor = new THREE.Mesh(mezGeo, mezMat);
+            // Posisikan plat tepat di atas rak lantai 1
+            mezFloor.position.set(fastStartX + mezW/2, mezH + mezThickness/2, fastZStartTop + mezD/2);
+            mezFloor.castShadow = true;
+            mezFloor.receiveShadow = true;
+            scene.add(mezFloor);
+            
+            // Garis tepi (Sketchup style) untuk Plat Mezzanine
+            const mezEdges = new THREE.EdgesGeometry(mezGeo);
+            const mezLine = new THREE.LineSegments(mezEdges, new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 }));
+            mezLine.position.copy(mezFloor.position);
+            scene.add(mezLine);
 
-            const double120Width = 1.2;
-            for(let i=0; i<9; i++) {
-                createRackRow(xPos, fastZStartTop, double120Width, fastRackDepthHalf, 3, colors.rackSmallFrame, colors.rackSmallShelf, true);
-                createRackRow(xPos, fastZStartBottom, double120Width, fastRackDepthHalf, 3, colors.rackSmallFrame, colors.rackSmallShelf, true);
-                xPos += double120Width + aisle1m;
+            // 2. Membangun Rak di Lantai 1 (GF) dan Lantai 2 secara otomatis
+            for (let floor = 0; floor < 2; floor++) {
+                // Jika Lantai 1 (0), mulai dari bawah. Jika Lantai 2, mulai dari atas plat Mezzanine
+                let yOffset = floor === 0 ? 0 : mezH + mezThickness;
+                let xPos = fastStartX;
+
+                const fastSingle90Width = 0.9;
+                createRackRow(xPos, fastZStartTop, fastSingle90Width, fastRackDepthHalf, 3, colors.rackSmallFrame, colors.rackSmallShelf, false, mezH, yOffset);
+                createRackRow(xPos, fastZStartBottom, fastSingle90Width, fastRackDepthHalf, 3, colors.rackSmallFrame, colors.rackSmallShelf, false, mezH, yOffset);
+                
+                xPos += fastSingle90Width + aisle1m;
+
+                const double120Width = 1.2;
+                for(let i=0; i<9; i++) {
+                    createRackRow(xPos, fastZStartTop, double120Width, fastRackDepthHalf, 3, colors.rackSmallFrame, colors.rackSmallShelf, true, mezH, yOffset);
+                    createRackRow(xPos, fastZStartBottom, double120Width, fastRackDepthHalf, 3, colors.rackSmallFrame, colors.rackSmallShelf, true, mezH, yOffset);
+                    xPos += double120Width + aisle1m;
+                }
+
+                const fastSingle60Width = 0.6;
+                createRackRow(xPos, fastZStartTop, fastSingle60Width, fastRackDepthHalf, 3, colors.rackSmallFrame, colors.rackSmallShelf, false, mezH, yOffset);
+                createRackRow(xPos, fastZStartBottom, fastSingle60Width, fastRackDepthHalf, 3, colors.rackSmallFrame, colors.rackSmallShelf, false, mezH, yOffset);
             }
-
-            const fastSingle60Width = 0.6;
-            createRackRow(xPos, fastZStartTop, fastSingle60Width, fastRackDepthHalf, 3, colors.rackSmallFrame, colors.rackSmallShelf);
-            createRackRow(xPos, fastZStartBottom, fastSingle60Width, fastRackDepthHalf, 3, colors.rackSmallFrame, colors.rackSmallShelf);
         }
 
         function buildPallets() {
