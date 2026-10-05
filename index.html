@@ -582,6 +582,43 @@
             group.add(deskGroup);
         }
 
+        // Helper untuk Truk Loading/Unloading
+        function createTruck(x, z, rotY, group) {
+            const truck = new THREE.Group();
+            
+            // Kepala Truk (Cabin)
+            const cabinMat = new THREE.MeshStandardMaterial({color: 0xeeeeee, metalness: 0.2, roughness: 0.5});
+            const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.0, 2.5, 2.5), cabinMat);
+            cabin.position.set(-3.0, 1.75, 0); cabin.castShadow = true; truck.add(cabin);
+
+            // Kaca Depan
+            const glassMat = new THREE.MeshStandardMaterial({color: 0x111111, metalness: 0.9, roughness: 0.1});
+            const glass = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.2), glassMat);
+            glass.position.set(-4.01, 2.0, 0); glass.rotation.y = -Math.PI / 2; truck.add(glass);
+
+            // Bak Truk (Container/Box)
+            const boxMat = new THREE.MeshStandardMaterial({color: 0x3498db, roughness: 0.7});
+            const box = new THREE.Mesh(new THREE.BoxGeometry(6.0, 3.0, 2.8), boxMat);
+            box.position.set(1.0, 2.0, 0); box.castShadow = true; truck.add(box);
+
+            // Roda Truk
+            const wheelMat = new THREE.MeshStandardMaterial({color: 0x222222, roughness: 0.9});
+            const wheelGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.4, 16);
+            const wheelPositions = [
+                [-2.5, 0.5, 1.3], [-2.5, 0.5, -1.3], // Depan
+                [1.0, 0.5, 1.3], [1.0, 0.5, -1.3],   // Tengah
+                [3.0, 0.5, 1.3], [3.0, 0.5, -1.3]    // Belakang
+            ];
+            wheelPositions.forEach(pos => {
+                const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+                wheel.position.set(pos[0], pos[1], pos[2]); wheel.rotation.x = Math.PI / 2;
+                wheel.castShadow = true; truck.add(wheel);
+            });
+
+            truck.position.set(x, 0, z); truck.rotation.y = rotY;
+            group.add(truck);
+        }
+
         // ==========================================
         // SKENARIO 1 (KALIBRASI EKSISTING)
         // ==========================================
@@ -692,10 +729,79 @@
             const sdZTop = 9.5; 
             const sdZBottom = 9.5 + sdDepth + 1.0; 
             
-            const mezW = 24; const mezD = 10.0; const mezH = 2.5; const mezThickness = 0.1;
+            // PENYESUAIAN MEZZANINE: Lantai diperlebar 1m di Utara & Selatan untuk Railing & Akses
+            const walkwayExt = 1.0;
+            const mezW = 24; 
+            const originalMezD = 10.0;
+            const mezD = originalMezD + (walkwayExt * 2); // Menjadi 12.0
+            const mezH = 2.5; const mezThickness = 0.1;
+            
             const mezFloor = new THREE.Mesh(new THREE.BoxGeometry(mezW, mezThickness, mezD), new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 1.0 }));
-            mezFloor.position.set(sdX + mezW/2, mezH + mezThickness/2, sdZTop + mezD/2);
+            // Posisi Z-center tetap di 14.5
+            mezFloor.position.set(sdX + mezW/2, mezH + mezThickness/2, sdZTop + originalMezD/2);
+            mezFloor.castShadow = true; mezFloor.receiveShadow = true;
             currentScenarioGroup.add(mezFloor);
+            
+            // PEMASANGAN RAILING KELILING MEZZANINE
+            const postMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, roughness: 0.5 });
+            const railingGroup = new THREE.Group();
+            const railT = 0.05; const postH = 1.0;
+            
+            // Horizontal Rails (Utara & Selatan)
+            const railLongGeo = new THREE.BoxGeometry(mezW, railT, railT);
+            const topN = new THREE.Mesh(railLongGeo, postMat); topN.position.set(sdX + mezW/2, mezH + postH, 14.5 - mezD/2); railingGroup.add(topN);
+            const midN = new THREE.Mesh(railLongGeo, postMat); midN.position.set(sdX + mezW/2, mezH + postH/2, 14.5 - mezD/2); railingGroup.add(midN);
+            const topS = new THREE.Mesh(railLongGeo, postMat); topS.position.set(sdX + mezW/2, mezH + postH, 14.5 + mezD/2); railingGroup.add(topS);
+            const midS = new THREE.Mesh(railLongGeo, postMat); midS.position.set(sdX + mezW/2, mezH + postH/2, 14.5 + mezD/2); railingGroup.add(midS);
+            
+            // Horizontal Rails (Barat & Timur)
+            const railShortGeo = new THREE.BoxGeometry(railT, railT, mezD);
+            const topW = new THREE.Mesh(railShortGeo, postMat); topW.position.set(sdX, mezH + postH, 14.5); railingGroup.add(topW);
+            const midW = new THREE.Mesh(railShortGeo, postMat); midW.position.set(sdX, mezH + postH/2, 14.5); railingGroup.add(midW);
+            const topE = new THREE.Mesh(railShortGeo, postMat); topE.position.set(sdX + mezW, mezH + postH, 14.5); railingGroup.add(topE);
+            const midE = new THREE.Mesh(railShortGeo, postMat); midE.position.set(sdX + mezW, mezH + postH/2, 14.5); railingGroup.add(midE);
+
+            // Tiang Railing (Posts)
+            for(let px = sdX; px <= sdX + mezW + 0.01; px += 1.5) {
+                const postN = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, postH, 8), postMat);
+                postN.position.set(px, mezH + postH/2, 14.5 - mezD/2); railingGroup.add(postN);
+                const postS = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, postH, 8), postMat);
+                postS.position.set(px, mezH + postH/2, 14.5 + mezD/2); railingGroup.add(postS);
+            }
+            for(let pz = 14.5 - mezD/2; pz <= 14.5 + mezD/2 + 0.01; pz += 1.5) {
+                const postW = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, postH, 8), postMat);
+                postW.position.set(sdX, mezH + postH/2, pz); railingGroup.add(postW);
+                const postE = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, postH, 8), postMat);
+                postE.position.set(sdX + mezW, mezH + postH/2, pz); railingGroup.add(postE);
+            }
+            currentScenarioGroup.add(railingGroup);
+
+            // TANGGA MEZZANINE (KIRI & KANAN)
+            // Di posisikan sejajar tepi Selatan (Z=20) agar pendaratan tidak memotong/menghalangi rute utama Forklift
+            function createMezStaircase(startX, startZ, directionX) {
+                const stairGroup = new THREE.Group();
+                const steps = 14;
+                const stepH = mezH / steps;
+                const stepW = 3.0 / steps; // Panjang run tangga 3 meter
+                const stairWidth = 1.0; 
+                const stepMat = new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 0.9 });
+                
+                for(let i=0; i<steps; i++) {
+                    const step = new THREE.Mesh(new THREE.BoxGeometry(stepW, stepH, stairWidth), stepMat);
+                    // directionX = 1 (turun ke timur), -1 (turun ke barat)
+                    const offsetX = directionX * (i * stepW + stepW/2);
+                    step.position.set(startX + offsetX, mezH - (i * stepH) - stepH/2, startZ);
+                    step.castShadow = true; step.receiveShadow = true;
+                    stairGroup.add(step);
+                }
+                currentScenarioGroup.add(stairGroup);
+            }
+
+            // Tangga Kiri (Barat) - Mulai dari X=37, turun ke arah Barat ke area aman luar rute forklift
+            createMezStaircase(sdX + 1.0, 14.5 + mezD/2 - 0.5, -1);
+            
+            // Tangga Kanan (Timur) - Mulai dari X=59, turun ke arah Timur menuju area QC/Packing
+            createMezStaircase(sdX + mezW - 1.0, 14.5 + mezD/2 - 0.5, 1);
             
             createArea(36, 14, 24, 1.0, 0xFFC107, "Aisle Picking");
 
@@ -810,6 +916,70 @@
             b5R.position.set(xOfficeWall, bannerY, 15);
             b5R.rotation.y = -Math.PI / 2;
             currentScenarioGroup.add(b5R);
+
+            // ==========================================
+            // TAMBAHAN: AKTIVITAS LOADING & UNLOADING (PINTU TIMUR)
+            // ==========================================
+            // Area Loading (Pintu Out - Utara Z=4.5)
+            createTruck(77, 4.5, 0, currentScenarioGroup); // Truk parkir, bak menghadap pintu gudang
+            createForklift(72.5, 4.5, 0, currentScenarioGroup); // Forklift memuat barang ke truk
+            createWorker(73.5, 3.5, -Math.PI / 4, 0xFF9800, currentScenarioGroup); // Pekerja mengarahkan
+            
+            // Area Unloading (Pintu In - Selatan Z=19.5)
+            createTruck(77, 19.5, 0, currentScenarioGroup); // Truk parkir
+            createForklift(72.5, 19.5, 0, currentScenarioGroup); // Forklift membongkar barang dari truk
+            createWorker(73.5, 20.5, Math.PI / 4, 0xFF9800, currentScenarioGroup); // Pekerja mengarahkan
+
+            // ==========================================
+            // TAMBAHAN: LOGO PERUSAHAAN (SKENARIO 1)
+            // ==========================================
+            const logoGeo = new THREE.PlaneGeometry(6, 3);
+            const logoMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, side: THREE.DoubleSide });
+            
+            // 1. Eksterior Depan (Dinding Utama Timur X=72, di atas pintu / segitiga atap)
+            const logoDepan = new THREE.Mesh(logoGeo, logoMat.clone());
+            // Posisi dimajukan ke 72.15 agar tidak tertelan ketebalan dinding
+            logoDepan.position.set(72.15, 7.5, 12);
+            logoDepan.rotation.y = Math.PI / 2;
+            currentScenarioGroup.add(logoDepan);
+            
+            // 2. Interior Belakang (Dinding Dalam Barat X=0)
+            const logoBelakang = new THREE.Mesh(logoGeo, logoMat.clone());
+            // Posisi dimajukan ke 0.15 agar tidak tertelan ketebalan dinding
+            logoBelakang.position.set(0.15, 4.5, 12);
+            logoBelakang.rotation.y = Math.PI / 2;
+            currentScenarioGroup.add(logoBelakang);
+
+            const texLoader = new THREE.TextureLoader();
+            texLoader.crossOrigin = "Anonymous";
+            
+            // Memuat logo dari file yang dilampirkan
+            texLoader.load('image_a62588.png', 
+                function(texture) {
+                    // Jika sukses dimuat, pasang gambar
+                    logoDepan.material.map = texture;
+                    logoDepan.material.needsUpdate = true;
+                    logoBelakang.material.map = texture;
+                    logoBelakang.material.needsUpdate = true;
+                },
+                undefined,
+                function(err) {
+                    // Fallback: Jika gambar file gagal/terblokir sistem, buat logo canvas otomatis
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 512; canvas.height = 256;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,512,256);
+                    ctx.fillStyle = '#c0392b'; ctx.font = 'bold 150px Inter, sans-serif';
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText('BSS', 256, 128); // Sesuai dengan tulisan pada gambar Anda
+                    const fallbackTex = new THREE.CanvasTexture(canvas);
+                    
+                    logoDepan.material.map = fallbackTex;
+                    logoDepan.material.needsUpdate = true;
+                    logoBelakang.material.map = fallbackTex;
+                    logoBelakang.material.needsUpdate = true;
+                }
+            );
         }
 
         // ==========================================
@@ -826,10 +996,60 @@
             restWall.position.set(3, 1.5, 3); currentScenarioGroup.add(restWall);
 
             // 2. DEMARKASI AREA UTARA
-            createArea(36, 0, 24, 6, 0xff0000, "Area Karantina");
+            createArea(36, 0, 12, 6, 0xff0000, "Area Karantina");
+            createArea(48, 0, 12, 6, 0xf39c12, "Area Transit");
+
+            // Isi Transit Area dengan Palet Plastik & Barang
+            for(let px = 50; px <= 58; px += 2.5) {
+                for(let pz = 1.5; pz <= 4.5; pz += 1.5) {
+                    if(Math.random() > 0.2) addPlasticPalletWithGoods(px, pz, currentScenarioGroup);
+                }
+            }
+
+            // PEMBUATAN PAGAR (FENCE) AREA KARANTINA & TRANSIT
+            function createFenceWall(x, z, length, rotationY) {
+                const height = 2.5; 
+                const group = new THREE.Group();
+                const postGeo = new THREE.CylinderGeometry(0.05, 0.05, height, 8);
+                const postMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, roughness: 0.5 }); 
+                
+                for (let i = 0; i <= length + 0.01; i += 2) {
+                    const post = new THREE.Mesh(postGeo, postMat);
+                    post.position.set(i, height/2, 0);
+                    post.castShadow = true;
+                    group.add(post);
+                }
+
+                const panelGeo = new THREE.PlaneGeometry(length, height);
+                const panelMat = new THREE.MeshStandardMaterial({ 
+                    color: 0x666666, wireframe: true, transparent: true, opacity: 0.4, side: THREE.DoubleSide
+                });
+                const panel = new THREE.Mesh(panelGeo, panelMat);
+                panel.position.set(length/2, height/2, 0);
+                group.add(panel);
+                
+                const railGeo = new THREE.BoxGeometry(length, 0.05, 0.05);
+                const topRail = new THREE.Mesh(railGeo, postMat);
+                topRail.position.set(length/2, height - 0.1, 0);
+                group.add(topRail);
+                
+                const bottomRail = new THREE.Mesh(railGeo, postMat);
+                bottomRail.position.set(length/2, 0.2, 0);
+                group.add(bottomRail);
+
+                group.position.set(x, 0, z);
+                group.rotation.y = rotationY;
+                currentScenarioGroup.add(group);
+            }
+
+            // Memasang pagar depan untuk Karantina dan Transit
+            createFenceWall(36, 6, 24, 0); 
+            // Memasang pagar sekat pembatas samping
+            createFenceWall(36, 6, 6, Math.PI / 2); // Sekat Kiri Karantina
+            createFenceWall(48, 6, 6, Math.PI / 2); // Sekat Karantina - Transit
+            createFenceWall(60, 6, 6, Math.PI / 2); // Sekat Kanan Transit
 
             // 3. RAK HEAVY DUTY VERTIKAL (Utara, X: 6-36, Z: 0-6)
-            // Sesuai gambar: 1 Single, 5 Double. Aisle 4m.
             let hdNx = 6.2;
             const hdNz = 0.5;
             const hdNDepth = 5;
@@ -843,114 +1063,220 @@
             }
 
             // 4. RAK HEAVY DUTY HORIZONTAL & SMALL DUTY (Tengah, Z: 10-14)
-            // Kalibrasi Aisle Forklift: 4m di atas (Z=6 ke 10) dan 4m di bawah (Z=14 ke 18)
             createArea(0, 6, 60, 4.0, 0xFFC107, "Jalur Forklift Atas (4m)");
-            createArea(0, 14, 60, 4.0, 0xFFC107, "Jalur Forklift Bawah (4m)");
+            createArea(0, 14, 40.5, 4.0, 0xFFC107, "Jalur Forklift Bawah HD (4m)"); // Diperpendek hanya untuk area HD
+            createArea(40.5, 19, 19.5, 2.5, 0xFFC107, "Jalur Forklift SD Bawah"); // Jalur Forklift dipindah ke bawah rak SD
             createArea(36, 10, 4.5, 4.0, 0xFFC107, "Jalur Vertikal (4.5m)");
 
             // -- Heavy Duty Horizontal --
             let hzX = 2.5;
-            const hzZ = 10; // Mulai tepat di bawah aisle 4m
-            const hzDepth = 4; // Kedalaman 4m agar pas di tengah (Z=10 ke 14)
-            for(let i=0; i<12; i++) {
+            const hzZ = 10; 
+            const hzDepth = 4; 
+            for(let i=0; i<11; i++) {
                 createRackRow(hzX, hzZ, 2.6, hzDepth, 4, colors.rackHeavyFrame, colors.rackHeavyBeam, true, 4.5, 0, true);
                 hzX += 2.6 + 0.1; 
             }
 
-            // -- Small Duty (Timur) sejajar dengan Heavy Duty Horizontal --
-            // Kedalaman total 4m = Row 1.5m + Aisle 1m + Row 1.5m
-            let sdX = 40.5; 
-            const sdDepth = 1.5;
-            const sdZTop = 10; 
-            const sdZBottom = 12.5; // Top(10) + Depth(1.5) + Aisle(1) = 12.5
+            // 5. AREA CONTAINER & FLOOR KOLIAN (Selatan, X: 0-36, Z: 18-24)
+            // Area Kontainer di Selatan
+            const contGeo = new THREE.BoxGeometry(2.5, 2.5, 6);
+            const contMat = new THREE.MeshStandardMaterial({ color: 0x2980b9 }); 
+            for(let i=0; i<6; i++) {
+                const startX = i * 6;
+                const cont = new THREE.Mesh(contGeo, contMat);
+                cont.position.set(startX + 1.25, 1.25, 21); 
+                cont.castShadow = true;
+                currentScenarioGroup.add(cont);
+                
+                createArea(startX + 2.5, 18, 3.5, 6, 0xffffff, "Floor Area");
+
+                // TAMBAHAN: Palet Kayu + Material di Area Floor
+                // KALIBRASI: Dihilangkan dari grid terakhir (startX = 30) agar area yang menjadi Aisle Forklift benar-benar bersih
+                if (startX < 30) {
+                    for(let px = startX + 3.2; px <= startX + 5.0; px += 1.5) { // Batas presisi agar tidak tumpah
+                        for(let pz = 19; pz <= 23; pz += 1.5) {
+                            if(Math.random() > 0.3) {
+                                const palletGeo = new THREE.BoxGeometry(1.2, 0.15, 1.0);
+                                const palletMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.9 });
+                                const pallet = new THREE.Mesh(palletGeo, palletMat);
+                                pallet.position.set(px, 0.075, pz);
+                                pallet.castShadow = true;
+                                currentScenarioGroup.add(pallet);
+
+                                const boxH = 0.5 + Math.random() * 0.4;
+                                const boxGeo = new THREE.BoxGeometry(1.1, boxH, 0.9);
+                                const boxMat = new THREE.MeshStandardMaterial({ color: 0xb08d6a, roughness: 0.8 });
+                                const box = new THREE.Mesh(boxGeo, boxMat);
+                                box.position.set(px, 0.15 + boxH/2, pz);
+                                box.castShadow = true;
+                                currentScenarioGroup.add(box);
+                                
+                                const edges = new THREE.EdgesGeometry(boxGeo);
+                                const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x444444, linewidth: 1 }));
+                                line.position.copy(box.position);
+                                currentScenarioGroup.add(line);
+                            }
+                        }
+                    }
+
+                    // Spanduk "Part Get" tidak ditampilkan di Aisle Forklift
+                    const bPartGet = createBanner("Part Get", "#27ae60", "#ffffff", 2.5, 0.8);
+                    bPartGet.position.set(startX + 4.25, 1.5, 23.9);
+                    bPartGet.rotation.y = Math.PI; 
+                    currentScenarioGroup.add(bPartGet);
+                }
+            }
+
+            // Proyeksi Mezzanine (Lantai 2) Plywood tebal di atas Kontainer & Floor Area
+            // KALIBRASI: Batas presisi sejajar dengan Rak Heavy Duty sisi timur (X = 32.2)
+            const mezContW = 32.2; 
+            const mezContD = 6;
+            const mezContH = 2.5; 
+            const mezContThick = 0.15;
+            const mezContFloor = new THREE.Mesh(new THREE.BoxGeometry(mezContW, mezContThick, mezContD), new THREE.MeshStandardMaterial({ color: 0xc19a6b, roughness: 1.0 })); 
+            // Posisi tengah X disesuaikan, membentang persis dari X=0 hingga X=32.2
+            mezContFloor.position.set(mezContW/2, mezContH + mezContThick/2, 21);
+            mezContFloor.castShadow = true;
+            mezContFloor.receiveShadow = true;
+            currentScenarioGroup.add(mezContFloor);
+
+            // Menambahkan Penghalang (Railing) FULL pada seluruh batas terbuka lantai 2
+            const postMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, roughness: 0.5 });
             
-            const mezW = 19.5; const mezD = 4.0; const mezH = 2.5; const mezThickness = 0.1;
-            const mezFloorSD = new THREE.Mesh(new THREE.BoxGeometry(mezW, mezThickness, mezD), new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 1.0 }));
-            mezFloorSD.position.set(sdX + mezW/2, mezH + mezThickness/2, hzZ + mezD/2);
-            currentScenarioGroup.add(mezFloorSD);
+            // Railing Timur
+            const barrierGroupEast = new THREE.Group();
+            const railGeoEast = new THREE.BoxGeometry(0.05, 0.05, mezContD);
+            const topRailEast = new THREE.Mesh(railGeoEast, postMat);
+            topRailEast.position.set(0, 1.0, 0); barrierGroupEast.add(topRailEast);
+            const midRailEast = new THREE.Mesh(railGeoEast, postMat);
+            midRailEast.position.set(0, 0.5, 0); barrierGroupEast.add(midRailEast);
+            for (let bz = -mezContD/2; bz <= mezContD/2 + 0.01; bz += 1.5) {
+                const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.0, 8), postMat);
+                post.position.set(0, 0.5, bz); barrierGroupEast.add(post);
+            }
+            barrierGroupEast.position.set(mezContW - 0.05, mezContH + mezContThick, 21);
+            currentScenarioGroup.add(barrierGroupEast);
+
+            // Railing Utara (Menghadap Jalur Forklift, Sepanjang tepi lantai 2)
+            const barrierGroupNorth = new THREE.Group();
+            const railGeoNorth = new THREE.BoxGeometry(mezContW, 0.05, 0.05);
+            const topRailNorth = new THREE.Mesh(railGeoNorth, postMat);
+            topRailNorth.position.set(mezContW/2, 1.0, 0); barrierGroupNorth.add(topRailNorth);
+            const midRailNorth = new THREE.Mesh(railGeoNorth, postMat);
+            midRailNorth.position.set(mezContW/2, 0.5, 0); barrierGroupNorth.add(midRailNorth);
+            for (let bx = 0; bx <= mezContW; bx += 1.5) {
+                const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.0, 8), postMat);
+                post.position.set(bx, 0.5, 0); barrierGroupNorth.add(post);
+            }
+            barrierGroupNorth.position.set(0, mezContH + mezContThick, 18.05);
+            currentScenarioGroup.add(barrierGroupNorth);
+
+            // Menambahkan Jalur Aisle tepat di batas ujung timur kontainer (Mulai dari X=36, Lebar 4.5m)
+            createArea(36, 18, 4.5, 6, 0xFFC107, "Aisle Forklift Timur Kontainer");
+
+            // Tambahkan Material / Barang Kolian di Lantai 2 Mezzanine Kontainer
+            // Dikalibrasi agar tumpukan barang berhenti sebelum batas ujung lantai 2
+            for(let px = 1; px <= mezContW - 1; px += 1.5) {
+                for(let pz = 18.5; pz <= 23.5; pz += 1.2) {
+                    if(Math.random() > 0.4) { // 60% kemungkinan terisi barang
+                        const boxH = 0.4 + Math.random() * 0.6;
+                        const box = new THREE.Mesh(new THREE.BoxGeometry(0.8, boxH, 0.8), new THREE.MeshStandardMaterial({ color: 0xb08d6a, roughness: 0.8 }));
+                        box.position.set(px, mezContH + mezContThick + boxH/2, pz);
+                        box.castShadow = true;
+                        currentScenarioGroup.add(box);
+                        
+                        const edges = new THREE.EdgesGeometry(box.geometry);
+                        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x444444, linewidth: 1 }));
+                        line.position.copy(box.position);
+                        currentScenarioGroup.add(line);
+                    }
+                }
+            }
+
+            // 5. RACKING AREA SMALL DUTY & MEZZANINE (X: 36 - 60m)
+            let sdX = 36; 
+            const sdDepth = 4.5;
+            const sdZTop = 9.5; 
+            const sdZBottom = 9.5 + sdDepth + 1.0; 
             
-            createArea(40.5, 11.5, 19.5, 1.0, 0xFFC107, "Aisle Picking");
+            const mezW = 24; const mezD = 10.0; const mezH = 2.5; const mezThickness = 0.1;
+            const mezFloor = new THREE.Mesh(new THREE.BoxGeometry(mezW, mezThickness, mezD), new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 1.0 }));
+            mezFloor.position.set(sdX + mezW/2, mezH + mezThickness/2, sdZTop + mezD/2);
+            currentScenarioGroup.add(mezFloor);
+            
+            createArea(36, 14, 24, 1.0, 0xFFC107, "Aisle Picking");
 
             for (let floor = 0; floor < 2; floor++) {
                 let yOffset = floor === 0 ? 0 : mezH + mezThickness;
                 let rx = sdX;
                 
-                // Rak Kiri (Single 60)
                 createRackRow(rx, sdZTop, 0.6, sdDepth, 3, colors.rackSmallFrame, colors.rackSmallShelf, false, mezH, yOffset, false, true);
                 createRackRow(rx, sdZBottom, 0.6, sdDepth, 3, colors.rackSmallFrame, colors.rackSmallShelf, false, mezH, yOffset, false, true);
                 rx += 0.6 + 1.0; 
                 
-                // Rak Tengah (7x Double 120)
-                for(let i = 0; i < 7; i++) {
+                for(let i = 0; i < 10; i++) {
                     createRackRow(rx, sdZTop, 1.2, sdDepth, 3, colors.rackSmallFrame, colors.rackSmallShelf, true, mezH, yOffset, false, true);
                     createRackRow(rx, sdZBottom, 1.2, sdDepth, 3, colors.rackSmallFrame, colors.rackSmallShelf, true, mezH, yOffset, false, true);
                     rx += 1.2 + 1.0;
                 }
                 
-                // Rak Kanan (Single 60)
                 createRackRow(rx, sdZTop, 0.6, sdDepth, 3, colors.rackSmallFrame, colors.rackSmallShelf, false, mezH, yOffset, false, true);
                 createRackRow(rx, sdZBottom, 0.6, sdDepth, 3, colors.rackSmallFrame, colors.rackSmallShelf, false, mezH, yOffset, false, true);
             }
 
-            // 5. AREA CONTAINER & FLOOR KOLIAN (Selatan, X: 0-36, Z: 18-24)
-            let cx = 0;
-            const contMat = new THREE.MeshStandardMaterial({ color: 0x2980b9 }); 
-            const floorAreaColor = 0xffffff;
+            // ==========================================
+            // TAMBAHAN: SPANDUK AREA & K3/5R SKENARIO 2
+            // ==========================================
+            function createBanner(text, bgColor, fgColor, width, height) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1024;
+                canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+                
+                // Background
+                ctx.fillStyle = bgColor;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Border
+                ctx.strokeStyle = fgColor;
+                ctx.lineWidth = 15;
+                ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+
+                // Text
+                ctx.fillStyle = fgColor;
+                ctx.font = 'bold 70px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+                
+                const tex = new THREE.CanvasTexture(canvas);
+                const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+                const geo = new THREE.PlaneGeometry(width, height);
+                return new THREE.Mesh(geo, mat);
+            }
+
+            const bannerY = 4.5;
+            const zWallNorth = 0.11; // Sedikit di depan dinding
             
-            for(let i=0; i<5; i++) {
-                // Kontainer Bawah
-                const contGeo = new THREE.BoxGeometry(2.5, 2.5, 5.5);
-                const cont = new THREE.Mesh(contGeo, contMat);
-                cont.position.set(cx + 1.25, 1.25, 21);
-                
-                const edges = new THREE.EdgesGeometry(contGeo);
-                const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 1 }));
-                cont.add(line);
-                
-                currentScenarioGroup.add(cont);
-                createArea(cx, 18, 2.5, 6, 0x2980b9, "Container");
-                cx += 2.5;
-                
-                // Selingan Floor Area (Bawah)
-                if (i < 4) {
-                    createArea(cx, 18, 5.875, 6, floorAreaColor, "Floor Area");
-                    cx += 5.875;
-                }
-            }
+            const bKarantina = createBanner("AREA KARANTINA", "#ff0000", "#ffffff", 6, 1.2);
+            bKarantina.position.set(42, bannerY, zWallNorth); 
+            currentScenarioGroup.add(bKarantina);
 
-            // --- LANTAI 2 (MEZZANINE PLYWOOD) DI ATAS KONTAINER ---
-            const plyWoodGeo = new THREE.BoxGeometry(36, 0.2, 6);
-            const plyWoodMat = new THREE.MeshStandardMaterial({ color: 0xcda46b, roughness: 0.9 }); 
-            const plyWood = new THREE.Mesh(plyWoodGeo, plyWoodMat);
-            plyWood.position.set(18, 2.6, 21); // Tinggi 2.6 menempel di atas kontainer
-            plyWood.castShadow = true; 
-            plyWood.receiveShadow = true;
-            currentScenarioGroup.add(plyWood);
+            const bTransit = createBanner("AREA TRANSIT", "#f39c12", "#ffffff", 6, 1.2);
+            bTransit.position.set(54, bannerY, zWallNorth); 
+            currentScenarioGroup.add(bTransit);
 
-            // Tumpukan kardus (koli) di atas Plywood
-            for(let px = 1; px < 35; px += 1.2) {
-                for(let pz = 18.5; pz <= 23.5; pz += 1.2) {
-                    if(Math.random() > 0.3) { 
-                        const stackH = 0.5 + Math.random() * 1.5;
-                        const koliGeo = new THREE.BoxGeometry(1.0, stackH, 1.0);
-                        const koliMat = new THREE.MeshStandardMaterial({ color: 0xb08d6a, roughness: 0.8 });
-                        const koli = new THREE.Mesh(koliGeo, koliMat);
-                        koli.position.set(px, 2.7 + stackH/2, pz); // Berdiri di atas plywood (Y=2.7)
-                        koli.castShadow = true;
-                        currentScenarioGroup.add(koli);
-                        
-                        const kEdges = new THREE.EdgesGeometry(koliGeo);
-                        const kLine = new THREE.LineSegments(kEdges, new THREE.LineBasicMaterial({ color: 0x5c4033, linewidth: 1 }));
-                        kLine.position.copy(koli.position);
-                        currentScenarioGroup.add(kLine);
-                    }
-                }
-            }
+            const xOfficeWall = 62.85; // Menempel di dinding barat Office
 
-            // 6. QC & PACKING AREA (X: 60-66)
-            createArea(60, 0, 6, 6, 0x2196F3, "QC Out"); 
-            createArea(60, 6, 6, 12, 0x2196F3, "Packing"); 
-            createArea(60, 18, 6, 6, 0x2196F3, "QC In"); 
+            const bK3 = createBanner("UTAMAKAN K3", "#4CAF50", "#ffffff", 4.5, 1.2);
+            bK3.position.set(xOfficeWall, bannerY, 9);
+            bK3.rotation.y = -Math.PI / 2; // Diputar menghadap gudang
+            currentScenarioGroup.add(bK3);
+
+            const b5R = createBanner("BUDAYAKAN 5R", "#2196F3", "#ffffff", 4.5, 1.2);
+            b5R.position.set(xOfficeWall, bannerY, 15);
+            b5R.rotation.y = -Math.PI / 2;
+            currentScenarioGroup.add(b5R);
         }
 
         // ==========================================
