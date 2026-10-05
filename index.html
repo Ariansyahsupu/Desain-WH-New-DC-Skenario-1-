@@ -936,10 +936,10 @@
             const logoGeo = new THREE.PlaneGeometry(6, 3);
             const logoMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, side: THREE.DoubleSide });
             
-            // 1. Eksterior Depan (Dinding Utama Timur X=72, di atas pintu / segitiga atap)
+            // 1. Eksterior Depan (Dinding Utama Timur X=72, diturunkan ke dinding)
             const logoDepan = new THREE.Mesh(logoGeo, logoMat.clone());
-            // Posisi dimajukan ke 72.15 agar tidak tertelan ketebalan dinding
-            logoDepan.position.set(72.15, 7.5, 12);
+            // Posisi dimajukan ke 72.15 agar tidak tertelan ketebalan dinding, dan diturunkan (Y) dari 7.5 menjadi 4.5
+            logoDepan.position.set(72.15, 4.5, 12);
             logoDepan.rotation.y = Math.PI / 2;
             currentScenarioGroup.add(logoDepan);
             
