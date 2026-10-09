@@ -101,8 +101,9 @@
             
             <!-- TOMBOL SWITCH SKENARIO -->
             <div class="mt-2 border-t pt-3 flex gap-2">
-                <button id="btn-scen-1" onclick="switchScenario(1)" class="w-1/2 bg-blue-600 text-white font-semibold py-1.5 rounded shadow transition text-sm">Skenario 1</button>
-                <button id="btn-scen-2" onclick="switchScenario(2)" class="w-1/2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-1.5 rounded shadow transition text-sm">Skenario 2</button>
+                <button id="btn-scen-1" onclick="switchScenario(1)" class="w-1/3 bg-blue-600 text-white font-semibold py-1.5 rounded shadow transition text-sm">Skenario 1</button>
+                <button id="btn-scen-2" onclick="switchScenario(2)" class="w-1/3 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-1.5 rounded shadow transition text-sm">Skenario 2</button>
+                <button id="btn-scen-3" onclick="switchScenario(3)" class="w-1/3 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-1.5 rounded shadow transition text-sm">Skenario 3</button>
             </div>
 
             <div class="mt-3 border-t pt-3">
@@ -392,6 +393,45 @@
         // ==========================================
         // FUNGSI HELPER INTERIOR & DEMARKASI
         // ==========================================
+        function addSolidFloor(x, z, w, d, colorHex) {
+            const geo = new THREE.PlaneGeometry(w, d);
+            const mat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -1 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.rotation.x = -Math.PI / 2;
+            mesh.position.set(x + w/2, 0.01, z + d/2);
+            mesh.receiveShadow = true;
+            currentScenarioGroup.add(mesh);
+        }
+
+        function createSolidFloorBlock(x, z, w, d, colorHex, text) {
+            const geo = new THREE.PlaneGeometry(w, d);
+            const mat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -1 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.rotation.x = -Math.PI / 2;
+            mesh.position.set(x + w/2, 0.015, z + d/2);
+            mesh.receiveShadow = true;
+            currentScenarioGroup.add(mesh);
+
+            if (text) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1024; canvas.height = 128;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = colorHex === 0xcccccc ? '#e0e0e0' : (colorHex === 0x2196F3 ? '#64b5f6' : '#ffffff');
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = colorHex === 0xcccccc ? '#555555' : '#000000';
+                ctx.font = 'bold 50px Inter, sans-serif';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+                const tex = new THREE.CanvasTexture(canvas);
+                const bannerMat = new THREE.MeshBasicMaterial({ map: tex });
+                const bannerGeo = new THREE.PlaneGeometry(w * 0.8, d * 0.4);
+                const banner = new THREE.Mesh(bannerGeo, bannerMat);
+                banner.rotation.x = -Math.PI / 2;
+                banner.position.set(x + w/2, 0.02, z + d/2);
+                currentScenarioGroup.add(banner);
+            }
+        }
+
         function createArea(x, z, w, d, color, name) {
             const yPos = 0.02; 
             const lineThickness = 0.1; 
@@ -636,7 +676,9 @@
             restWall.position.set(3, 1.5, 3); currentScenarioGroup.add(restWall);
 
             // 2. DEMARKASI AREA UTARA (P: 18m, 12m, 12m, 12m sesuai layout)
-            createArea(6, 0, 18, 6, 0xffffff, "Floor Area"); 
+            // STANDAR 5.2.1.6: Daerah penyimpanan barang menggunakan warna Abu-abu (Light Grey) di dalam, batas kuning di luar
+            addSolidFloor(6, 0, 18, 6, 0x999999); 
+            createArea(6, 0, 18, 6, 0xFFC107, "Floor Area"); 
             
             // Isi Floor Area dengan Palet Plastik & Barang
             for(let px = 8; px <= 22; px += 2.5) {
@@ -645,16 +687,14 @@
                 }
             }
 
-            createArea(24, 0, 12, 6, 0x8e44ad, "Module NE"); 
-            createArea(36, 0, 12, 6, 0xff0000, "Karantina"); 
-            createArea(48, 0, 12, 6, 0xf39c12, "Transit");   
-
-            // Isi Transit Area dengan Palet Plastik & Barang
-            for(let px = 50; px <= 58; px += 2.5) {
-                for(let pz = 1.5; pz <= 4.5; pz += 1.5) {
-                    if(Math.random() > 0.2) addPlasticPalletWithGoods(px, pz, currentScenarioGroup);
-                }
-            }
+            addSolidFloor(24, 0, 12, 6, 0x999999); 
+            createArea(24, 0, 12, 6, 0xFFC107, "Module NE"); 
+            
+            addSolidFloor(36, 0, 12, 6, 0x999999); 
+            createArea(36, 0, 12, 6, 0xFFC107, "Karantina"); 
+            
+            addSolidFloor(48, 0, 12, 6, 0x999999); 
+            createArea(48, 0, 12, 6, 0xFFC107, "Transit");   
 
             // PEMBUATAN PAGAR (FENCE) AREA UTARA (FLOOR - TRANSIT)
             function createFenceWall(x, z, length, rotationY) {
@@ -702,7 +742,10 @@
             createFenceWall(60, 6, 6, Math.PI / 2); // Penutup kanan Transit
 
             // 3. JALUR FORKLIFT Y2 & Y5
+            addSolidFloor(0, 6, 60, 2.5, 0x2e7d32);
             createArea(0, 6, 60, 2.5, 0xFFC107, "Jalur Forklift Y2");
+            
+            addSolidFloor(0, 21.5, 60, 2.5, 0x2e7d32);
             createArea(0, 21.5, 60, 2.5, 0xFFC107, "Jalur Forklift Y5");
 
             // 4. RACKING AREA HEAVY DUTY (X: 0 - 36m)
@@ -710,17 +753,49 @@
             const hdZ = 9.5; 
             let hdX = 0; 
             
+            // --- HAMPARAN HIJAU PENUH UNTUK SELURUH AREA HEAVY DUTY ---
+            addSolidFloor(0, 8.5, 36, 13.0, 0x2e7d32); 
+
+            // Helper untuk mengecat warna abu-abu (Light Grey) presisi tepat di bawah tapak rak
+            function addRackFootprint(x, z, w, d, yBase) {
+                // 1. Buat Tapak Abu-abu
+                const geo = new THREE.PlaneGeometry(w, d);
+                const mat = new THREE.MeshStandardMaterial({ 
+                    color: 0x999999, // Abu-abu
+                    roughness: 0.9,
+                    polygonOffset: true,
+                    polygonOffsetFactor: -2 // PAKSA render di atas lantai hijau (-1) agar tidak hilang
+                });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.rotation.x = -Math.PI / 2;
+                mesh.position.set(x + w/2, yBase + 0.018, z + d/2); 
+                mesh.receiveShadow = true;
+                currentScenarioGroup.add(mesh);
+
+                // 2. Buat Garis Demarkasi Kuning Mengelilingi Tapak Rak
+                const lineT = 0.1;
+                const yMat = new THREE.MeshBasicMaterial({ color: 0xFFC107 });
+                const pY = yBase + 0.02; // Letakkan persis di atas tapak abu-abu
+                const l1 = new THREE.Mesh(new THREE.BoxGeometry(w, 0.01, lineT), yMat); l1.position.set(x + w/2, pY, z); currentScenarioGroup.add(l1);
+                const l2 = new THREE.Mesh(new THREE.BoxGeometry(w, 0.01, lineT), yMat); l2.position.set(x + w/2, pY, z + d); currentScenarioGroup.add(l2);
+                const l3 = new THREE.Mesh(new THREE.BoxGeometry(lineT, 0.01, d), yMat); l3.position.set(x, pY, z + d/2); currentScenarioGroup.add(l3);
+                const l4 = new THREE.Mesh(new THREE.BoxGeometry(lineT, 0.01, d), yMat); l4.position.set(x + w, pY, z + d/2); currentScenarioGroup.add(l4);
+            }
+
             // Rak Ke-1 (Single 90)
+            addRackFootprint(hdX, hdZ, 0.9, hdDepth, 0); 
             createRackRow(hdX, hdZ, 0.9, hdDepth, 4, colors.rackHeavyFrame, colors.rackHeavyBeam, false, 4.5, 0, true);
             hdX += 0.9 + 4.2; 
             
             // Rak Ke-2 s/d 6 (Double 180)
             for(let i = 0; i < 5; i++) {
+                addRackFootprint(hdX, hdZ, 1.8, hdDepth, 0); 
                 createRackRow(hdX, hdZ, 1.8, hdDepth, 4, colors.rackHeavyFrame, colors.rackHeavyBeam, true, 4.5, 0, true);
                 hdX += 1.8 + 4.2; 
             }
 
             // Rak Ke-7 (Single 90 - Berdempetan dengan Small Duty)
+            addRackFootprint(hdX, hdZ, 0.9, hdDepth, 0); 
             createRackRow(hdX, hdZ, 0.9, hdDepth, 4, colors.rackHeavyFrame, colors.rackHeavyBeam, false, 4.5, 0, true);
 
             // 5. RACKING AREA SMALL DUTY & MEZZANINE (X: 36 - 60m)
@@ -729,6 +804,9 @@
             const sdZTop = 9.5; 
             const sdZBottom = 9.5 + sdDepth + 1.0; 
             
+            // --- HAMPARAN HIJAU PENUH UNTUK SELURUH AREA SMALL DUTY (LANTAI 1) ---
+            addSolidFloor(36, 8.5, 24, 13.0, 0x2e7d32); 
+            
             // PENYESUAIAN MEZZANINE: Lantai diperlebar 1m di Utara & Selatan untuk Railing & Akses
             const walkwayExt = 1.0;
             const mezW = 24; 
@@ -736,7 +814,8 @@
             const mezD = originalMezD + (walkwayExt * 2); // Menjadi 12.0
             const mezH = 2.5; const mezThickness = 0.1;
             
-            const mezFloor = new THREE.Mesh(new THREE.BoxGeometry(mezW, mezThickness, mezD), new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 1.0 }));
+            // LANTAI MEZZANINE DIUBAH MENJADI HIJAU PENUH (0x2e7d32) AGAR TIDAK ADA PUTIH DI BAWAH RAK
+            const mezFloor = new THREE.Mesh(new THREE.BoxGeometry(mezW, mezThickness, mezD), new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 1.0 }));
             // Posisi Z-center tetap di 14.5
             mezFloor.position.set(sdX + mezW/2, mezH + mezThickness/2, sdZTop + originalMezD/2);
             mezFloor.castShadow = true; mezFloor.receiveShadow = true;
@@ -777,7 +856,6 @@
             currentScenarioGroup.add(railingGroup);
 
             // TANGGA MEZZANINE (KIRI & KANAN)
-            // Di posisikan sejajar tepi Selatan (Z=20) agar pendaratan tidak memotong/menghalangi rute utama Forklift
             function createMezStaircase(startX, startZ, directionX) {
                 const stairGroup = new THREE.Group();
                 const steps = 14;
@@ -794,40 +872,168 @@
                     step.castShadow = true; step.receiveShadow = true;
                     stairGroup.add(step);
                 }
+
+                // Tambahan Demarkasi Pembatas Ujung Tangga (Kuning)
+                const lineT = 0.1;
+                const yellowMat = new THREE.MeshBasicMaterial({ color: 0xFFC107 });
+                
+                // Demarkasi Ujung Atas (Lantai Mezzanine)
+                const topMarker = new THREE.Mesh(new THREE.BoxGeometry(lineT, 0.01, stairWidth), yellowMat);
+                // Diletakkan tepat di batas awal sebelum menuruni anak tangga pertama
+                topMarker.position.set(startX - (directionX * lineT / 2), mezH + mezThickness + 0.01, startZ);
+                stairGroup.add(topMarker);
+
+                // Demarkasi Ujung Bawah (Lantai Dasar)
+                const bottomMarker = new THREE.Mesh(new THREE.BoxGeometry(lineT, 0.01, stairWidth), yellowMat);
+                // Diletakkan tepat di lantai dasar setelah anak tangga terakhir
+                bottomMarker.position.set(startX + (directionX * 3.0) + (directionX * lineT / 2), 0.025, startZ);
+                stairGroup.add(bottomMarker);
+
                 currentScenarioGroup.add(stairGroup);
             }
 
-            // Tangga Kiri (Barat) - Mulai dari X=37, turun ke arah Barat ke area aman luar rute forklift
             createMezStaircase(sdX + 1.0, 14.5 + mezD/2 - 0.5, -1);
-            
-            // Tangga Kanan (Timur) - Mulai dari X=59, turun ke arah Timur menuju area QC/Packing
             createMezStaircase(sdX + mezW - 1.0, 14.5 + mezD/2 - 0.5, 1);
-            
-            createArea(36, 14, 24, 1.0, 0xFFC107, "Aisle Picking");
 
             for (let floor = 0; floor < 2; floor++) {
                 let yOffset = floor === 0 ? 0 : mezH + mezThickness;
                 let rx = sdX;
                 
+                // Rak Pertama (0.6)
+                addRackFootprint(rx, sdZTop, 0.6, sdDepth, yOffset);
+                addRackFootprint(rx, sdZBottom, 0.6, sdDepth, yOffset);
                 createRackRow(rx, sdZTop, 0.6, sdDepth, 3, colors.rackSmallFrame, colors.rackSmallShelf, false, mezH, yOffset, false, true);
                 createRackRow(rx, sdZBottom, 0.6, sdDepth, 3, colors.rackSmallFrame, colors.rackSmallShelf, false, mezH, yOffset, false, true);
                 rx += 0.6 + 1.0; 
                 
+                // Rak Tengah (10 Unit)
                 for(let i = 0; i < 10; i++) {
+                    addRackFootprint(rx, sdZTop, 1.2, sdDepth, yOffset);
+                    addRackFootprint(rx, sdZBottom, 1.2, sdDepth, yOffset);
                     createRackRow(rx, sdZTop, 1.2, sdDepth, 3, colors.rackSmallFrame, colors.rackSmallShelf, true, mezH, yOffset, false, true);
                     createRackRow(rx, sdZBottom, 1.2, sdDepth, 3, colors.rackSmallFrame, colors.rackSmallShelf, true, mezH, yOffset, false, true);
                     rx += 1.2 + 1.0;
                 }
                 
+                // Rak Terakhir (0.6)
+                addRackFootprint(rx, sdZTop, 0.6, sdDepth, yOffset);
+                addRackFootprint(rx, sdZBottom, 0.6, sdDepth, yOffset);
                 createRackRow(rx, sdZTop, 0.6, sdDepth, 3, colors.rackSmallFrame, colors.rackSmallShelf, false, mezH, yOffset, false, true);
                 createRackRow(rx, sdZBottom, 0.6, sdDepth, 3, colors.rackSmallFrame, colors.rackSmallShelf, false, mezH, yOffset, false, true);
             }
 
+            // ==========================================
+            // TAMBAHAN: SPANDUK ALAT BERAT DI UJUNG RAK (SKENARIO 1)
+            // ==========================================
+            function createEqBannerScen1(brand, bannerWidth, bannerHeight) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256; canvas.height = 1024;
+                const ctx = canvas.getContext('2d');
+                
+                // Background & Border
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 256, 1024);
+                ctx.strokeStyle = '#2980b9'; ctx.lineWidth = 10; ctx.strokeRect(5, 5, 246, 1014);
+                
+                // Brand Header
+                ctx.fillStyle = '#c0392b'; ctx.font = 'bold 45px Inter, sans-serif';
+                ctx.textAlign = 'center'; ctx.fillText(brand, 128, 80);
+                ctx.fillStyle = '#333333'; ctx.font = 'bold 20px Inter, sans-serif';
+                ctx.fillText("HEAVY EQUIPMENT", 128, 110);
+                
+                // Ilustrasi 1: Dump Truck (Kuning)
+                ctx.fillStyle = '#f1c40f'; ctx.fillRect(40, 220, 140, 80);
+                ctx.fillStyle = '#333333'; 
+                ctx.beginPath(); ctx.arc(60, 300, 25, 0, Math.PI*2); ctx.fill(); 
+                ctx.beginPath(); ctx.arc(160, 300, 25, 0, Math.PI*2); ctx.fill(); 
+                ctx.fillRect(180, 240, 40, 60); 
+
+                // Ilustrasi 2: Excavator (Oranye)
+                ctx.fillStyle = '#e67e22'; ctx.fillRect(60, 500, 100, 70); 
+                ctx.fillRect(160, 530, 60, 15); 
+                ctx.fillStyle = '#333333'; ctx.fillRect(40, 570, 140, 30); 
+                
+                // Ilustrasi 3: Bulldozer (Kuning Tua)
+                ctx.fillStyle = '#f39c12'; ctx.fillRect(60, 750, 120, 80); 
+                ctx.fillStyle = '#333333'; 
+                ctx.fillRect(30, 780, 25, 60); 
+                ctx.fillRect(50, 830, 140, 30); 
+
+                const tex = new THREE.CanvasTexture(canvas);
+                const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+                return new THREE.Mesh(new THREE.PlaneGeometry(bannerWidth, bannerHeight), mat);
+            }
+
+            const eqBrandsScen1 = ["KOMATSU", "LGMG", "XCMG", "SHANTUI"];
+            let eqIdxScen1 = 0;
+
+            // 1. Pasang Spanduk di ujung Rak Heavy Duty (Skenario 1)
+            let bxHD = 0;
+            const zHDF = 9.5; // Bagian Depan Rak Heavy Duty
+            const zHDB = 19.1; // Bagian Belakang Rak Heavy Duty (9.5 + kedalaman 9.6)
+            const hdWidths = [0.9, 1.8, 1.8, 1.8, 1.8, 1.8, 0.9];
+            
+            hdWidths.forEach(w => {
+                let banW = w * 0.95; // Lebar ditarik nyaris selebar rak
+                let banH = 4.3;      // Tinggi ditarik nyaris setinggi rak HD (4.5m)
+                
+                let banF = createEqBannerScen1(eqBrandsScen1[eqIdxScen1++ % 4], banW, banH);
+                banF.position.set(bxHD + w/2, banH/2 + 0.1, zHDF - 0.02); // Tepat di ujung depan
+                currentScenarioGroup.add(banF);
+
+                let banB = createEqBannerScen1(eqBrandsScen1[eqIdxScen1++ % 4], banW, banH);
+                banB.position.set(bxHD + w/2, banH/2 + 0.1, zHDB + 0.02); // Tepat di ujung belakang
+                currentScenarioGroup.add(banB);
+                
+                bxHD += w + 4.2;
+            });
+
+            // 2. Pasang Spanduk di ujung Rak Small Duty Lantai 1 & Lantai 2 (Skenario 1)
+            let bxSD = 36;
+            const zSDF_Top = 9.5; const zSDB_Top = 14.0; // Bagian depan & belakang lorong atas
+            const zSDF_Bot = 15.0; const zSDB_Bot = 19.5; // Bagian depan & belakang lorong bawah
+            const sdWidths = [0.6, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 0.6];
+            
+            sdWidths.forEach(w => {
+                let banW = w * 0.95; // Lebar ditarik nyaris selebar rak SD
+                let banH = 2.4;      // Tinggi ditarik nyaris setinggi rak tiap lantai (2.5m)
+                
+                // === LANTAI 1 ===
+                let yPosL1 = banH/2 + 0.05;
+                // Lorong Atas Lantai 1
+                let b1 = createEqBannerScen1(eqBrandsScen1[eqIdxScen1++ % 4], banW, banH); 
+                b1.position.set(bxSD + w/2, yPosL1, zSDF_Top - 0.02); currentScenarioGroup.add(b1);
+                let b2 = createEqBannerScen1(eqBrandsScen1[eqIdxScen1++ % 4], banW, banH); 
+                b2.position.set(bxSD + w/2, yPosL1, zSDB_Top + 0.02); currentScenarioGroup.add(b2);
+                
+                // Lorong Bawah Lantai 1
+                let b3 = createEqBannerScen1(eqBrandsScen1[eqIdxScen1++ % 4], banW, banH); 
+                b3.position.set(bxSD + w/2, yPosL1, zSDF_Bot - 0.02); currentScenarioGroup.add(b3);
+                let b4 = createEqBannerScen1(eqBrandsScen1[eqIdxScen1++ % 4], banW, banH); 
+                b4.position.set(bxSD + w/2, yPosL1, zSDB_Bot + 0.02); currentScenarioGroup.add(b4);
+
+                // === LANTAI 2 (MEZZANINE) ===
+                let yPosL2 = 2.6 + banH/2 + 0.05; // Ditambah tinggi lantai 1 (2.5) + tebal lantai (0.1)
+                // Lorong Atas Lantai 2
+                let b5 = createEqBannerScen1(eqBrandsScen1[eqIdxScen1++ % 4], banW, banH); 
+                b5.position.set(bxSD + w/2, yPosL2, zSDF_Top - 0.02); currentScenarioGroup.add(b5);
+                let b6 = createEqBannerScen1(eqBrandsScen1[eqIdxScen1++ % 4], banW, banH); 
+                b6.position.set(bxSD + w/2, yPosL2, zSDB_Top + 0.02); currentScenarioGroup.add(b6);
+                
+                // Lorong Bawah Lantai 2
+                let b7 = createEqBannerScen1(eqBrandsScen1[eqIdxScen1++ % 4], banW, banH); 
+                b7.position.set(bxSD + w/2, yPosL2, zSDF_Bot - 0.02); currentScenarioGroup.add(b7);
+                let b8 = createEqBannerScen1(eqBrandsScen1[eqIdxScen1++ % 4], banW, banH); 
+                b8.position.set(bxSD + w/2, yPosL2, zSDB_Bot + 0.02); currentScenarioGroup.add(b8);
+                
+                bxSD += w + 1.0;
+            });
+
             // 6. QC & PACKING AREA (Dikalibrasi masing-masing kedalaman 8m)
             // Total Lebar (X) 60-66
-            createArea(60, 0, 6, 8, 0x2196F3, "QC Out"); 
-            createArea(60, 8, 6, 8, 0x2196F3, "Packing"); 
-            createArea(60, 16, 6, 8, 0x2196F3, "QC In"); 
+            // STANDAR K3: Area kerja dalam Biru, batas Kuning
+            addSolidFloor(60, 0, 6, 8, 0x2196F3); createArea(60, 0, 6, 8, 0xFFC107, "QC Out"); 
+            addSolidFloor(60, 8, 6, 8, 0x2196F3); createArea(60, 8, 6, 8, 0xFFC107, "Packing"); 
+            addSolidFloor(60, 16, 6, 8, 0x2196F3); createArea(60, 16, 6, 8, 0xFFC107, "QC In"); 
 
             // 7. AKTIVITAS PEKERJA, MEJA, & FORKLIFT
             // QC Out
@@ -980,6 +1186,118 @@
                     logoBelakang.material.needsUpdate = true;
                 }
             );
+
+            // ==========================================
+            // TAMBAHAN: RAMBU-RAMBU KESELAMATAN & LALU LINTAS
+            // ==========================================
+            function createSafetySign(type, width, height) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = type.includes('danger') ? 384 : 256; 
+                if(type === 'direction') { canvas.width = 512; canvas.height = 256; }
+                
+                const ctx = canvas.getContext('2d');
+                const w = canvas.width;
+                const h = canvas.height;
+                
+                // Base background
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, w, h);
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+                if (type === 'warning') { // Peringatan (Kuning Belah Ketupat)
+                    ctx.fillStyle = '#ffeb3b';
+                    ctx.beginPath(); ctx.moveTo(w/2, 10); ctx.lineTo(w-10, h/2); ctx.lineTo(w/2, h-10); ctx.lineTo(10, h/2); ctx.fill();
+                    ctx.strokeStyle = '#000'; ctx.lineWidth = 10; ctx.stroke();
+                    ctx.fillStyle = '#000'; ctx.font = 'bold 120px Arial'; ctx.fillText('!', w/2, h/2 + 10);
+                } 
+                else if (type === 'forbidden_s') { // Larangan (Dilarang Stop - Merah)
+                    ctx.fillStyle = '#000'; ctx.font = 'bold 120px Arial'; ctx.fillText('S', w/2, h/2 + 15);
+                    ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = 25;
+                    ctx.beginPath(); ctx.arc(w/2, h/2, w/2 - 25, 0, Math.PI*2); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(w*0.25, h*0.25); ctx.lineTo(w*0.75, h*0.75); ctx.stroke();
+                }
+                else if (type === 'mandatory') { // Wajib (Wajib APD - Biru)
+                    ctx.fillStyle = '#1976d2'; ctx.beginPath(); ctx.arc(w/2, h/2, w/2 - 20, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(w/2, h/2 + 10, 40, Math.PI, 0); ctx.fill(); 
+                    ctx.fillRect(w/2 - 50, h/2 + 10, 100, 15); // Bentuk helm simpel
+                    ctx.font = 'bold 24px Arial'; ctx.fillStyle = '#000'; ctx.fillText('WAJIB APD', w/2, h - 15);
+                }
+                else if (type === 'facility') { // Fasilitas Publik (Makan/Istirahat)
+                    ctx.strokeStyle = '#1976d2'; ctx.lineWidth = 20; ctx.strokeRect(10, 10, w-20, h-20);
+                    ctx.fillStyle = '#000'; ctx.font = 'bold 100px Arial'; ctx.fillText('🍴', w/2, h/2 + 10);
+                }
+                else if (type === 'danger') { // Bahaya (Danger Do Not Enter)
+                    ctx.fillStyle = '#000'; ctx.fillRect(10, 10, w-20, h*0.35);
+                    ctx.fillStyle = '#f44336'; ctx.beginPath(); ctx.ellipse(w/2, h*0.18, w*0.4, h*0.12, 0, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#fff'; ctx.font = 'bold 45px Arial'; ctx.fillText('DANGER', w/2, h*0.18);
+                    ctx.fillStyle = '#000'; ctx.font = 'bold 40px Arial'; ctx.fillText('DO NOT', w/2, h*0.65); ctx.fillText('ENTER', w/2, h*0.80);
+                    ctx.strokeStyle = '#000'; ctx.lineWidth = 5; ctx.strokeRect(5, 5, w-10, h-10);
+                }
+                else if (type === 'fire') { // Pemadam / APAR (Segitiga Merah)
+                    ctx.fillStyle = '#e53935'; ctx.beginPath(); ctx.moveTo(10, 10); ctx.lineTo(w-10, 10); ctx.lineTo(w/2, h-10); ctx.fill();
+                    ctx.fillStyle = '#fff'; ctx.font = 'bold 30px Arial'; ctx.fillText('APAR', w/2, h*0.25);
+                    ctx.fillRect(w/2 - 15, h*0.35, 30, h*0.3); ctx.fillRect(w/2 - 5, h*0.3, 10, h*0.05); // Tabung APAR
+                }
+                else if (type === 'direction') { // Tanda Arah (Hijau)
+                    ctx.fillStyle = '#2e7d32'; ctx.fillRect(0,0,w,h);
+                    ctx.strokeStyle = '#fff'; ctx.lineWidth = 10; ctx.strokeRect(10,10,w-20, h-20);
+                    ctx.fillStyle = '#fff'; ctx.font = 'bold 60px Arial'; ctx.fillText('PINTU KELUAR ➔', w/2, h/2);
+                }
+                else if (type === 'eyewash') { // Peralatan Darurat (Hijau)
+                    ctx.fillStyle = '#2e7d32'; ctx.fillRect(0,0,w,h);
+                    ctx.strokeStyle = '#fff'; ctx.lineWidth = 10; ctx.strokeRect(10,10,w-20, h-20);
+                    ctx.fillStyle = '#fff'; ctx.font = 'bold 35px Arial'; ctx.fillText('EMERGENCY', w/2, h*0.35);
+                    ctx.font = 'bold 50px Arial'; ctx.fillText('EYE WASH', w/2, h*0.65);
+                }
+
+                const tex = new THREE.CanvasTexture(canvas);
+                const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+                return new THREE.Mesh(new THREE.PlaneGeometry(width, height), mat);
+            }
+
+            // 1. Fasilitas Publik (Menempel di dinding luar Ruang Istirahat)
+            const signRest = createSafetySign('facility', 1.0, 1.0);
+            signRest.position.set(3, 2.5, 6.01); 
+            currentScenarioGroup.add(signRest);
+
+            // 2. Peringatan Persimpangan (Di area tengah dekat Rak Heavy Duty)
+            const signWarn = createSafetySign('warning', 1.0, 1.0);
+            signWarn.position.set(18, 3.5, 9.5);
+            currentScenarioGroup.add(signWarn);
+
+            // 3. Larangan Berhenti (Di Jalur Forklift Aisle Y5)
+            const signStop = createSafetySign('forbidden_s', 1.0, 1.0);
+            signStop.position.set(36, 3.5, 21.0); 
+            signStop.rotation.y = Math.PI;
+            currentScenarioGroup.add(signStop);
+
+            // 4. Wajib APD (Di tiang dekat Pintu Masuk / QC In)
+            const signApd = createSafetySign('mandatory', 1.0, 1.0);
+            signApd.position.set(71.9, 3.0, 18); 
+            signApd.rotation.y = -Math.PI/2;
+            currentScenarioGroup.add(signApd);
+
+            // 5. Bahaya (Menempel di pagar pelindung Area Karantina)
+            const signDanger = createSafetySign('danger', 1.0, 1.5);
+            signDanger.position.set(42, 2.5, 6.01); 
+            currentScenarioGroup.add(signDanger);
+
+            // 6. APAR (Menempel di Tiang / Pillar Dinding Utara)
+            const signApar = createSafetySign('fire', 0.8, 0.8);
+            signApar.position.set(30, 2.5, 0.41); 
+            currentScenarioGroup.add(signApar);
+
+            // 7. Peralatan Darurat Eye Wash (Dekat Area Packing/QC Out)
+            const signEye = createSafetySign('eyewash', 1.0, 1.0);
+            signEye.position.set(65, 3.5, 0.11);
+            currentScenarioGroup.add(signEye);
+
+            // 8. Tanda Arah Keluar (Tergantung di atas Jalur Forklift Y2)
+            const signDir = createSafetySign('direction', 2.0, 1.0);
+            signDir.position.set(12, 5.0, 6);
+            currentScenarioGroup.add(signDir);
+
         }
 
         // ==========================================
@@ -1225,6 +1543,114 @@
             }
 
             // ==========================================
+            // TAMBAHAN: SPANDUK ALAT BERAT DI UJUNG RAK (SKENARIO 2)
+            // ==========================================
+            function createEqBannerScen2(brand, bannerWidth, bannerHeight) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256; canvas.height = 1024;
+                const ctx = canvas.getContext('2d');
+                
+                // Background & Border
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 256, 1024);
+                ctx.strokeStyle = '#2980b9'; ctx.lineWidth = 10; ctx.strokeRect(5, 5, 246, 1014);
+                
+                // Brand Header
+                ctx.fillStyle = '#c0392b'; ctx.font = 'bold 45px Inter, sans-serif';
+                ctx.textAlign = 'center'; ctx.fillText(brand, 128, 80);
+                ctx.fillStyle = '#333333'; ctx.font = 'bold 20px Inter, sans-serif';
+                ctx.fillText("HEAVY EQUIPMENT", 128, 110);
+                
+                // Ilustrasi 1: Dump Truck (Kuning)
+                ctx.fillStyle = '#f1c40f'; ctx.fillRect(40, 220, 140, 80);
+                ctx.fillStyle = '#333333'; 
+                ctx.beginPath(); ctx.arc(60, 300, 25, 0, Math.PI*2); ctx.fill(); 
+                ctx.beginPath(); ctx.arc(160, 300, 25, 0, Math.PI*2); ctx.fill(); 
+                ctx.fillRect(180, 240, 40, 60); 
+
+                // Ilustrasi 2: Excavator (Oranye)
+                ctx.fillStyle = '#e67e22'; ctx.fillRect(60, 500, 100, 70); 
+                ctx.fillRect(160, 530, 60, 15); 
+                ctx.fillStyle = '#333333'; ctx.fillRect(40, 570, 140, 30); 
+                
+                // Ilustrasi 3: Bulldozer (Kuning Tua)
+                ctx.fillStyle = '#f39c12'; ctx.fillRect(60, 750, 120, 80); 
+                ctx.fillStyle = '#333333'; 
+                ctx.fillRect(30, 780, 25, 60); 
+                ctx.fillRect(50, 830, 140, 30); 
+
+                const tex = new THREE.CanvasTexture(canvas);
+                const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+                return new THREE.Mesh(new THREE.PlaneGeometry(bannerWidth, bannerHeight), mat);
+            }
+
+            const eqBrandsScen2 = ["KOMATSU", "LGMG", "XCMG", "SHANTUI"];
+            let eqIdxScen2 = 0;
+
+            // 1. Spanduk Rak Heavy Duty Vertikal (X: 6.2 - 36, Z: 0.5 - 5.5)
+            let hdnX = 6.2;
+            const hdnZFront = 0.5;
+            const hdnZBack = 5.5; 
+            const hdnWidths = [0.9, 1.8, 1.8, 1.8, 1.8, 1.8];
+            
+            hdnWidths.forEach(w => {
+                let banW = w * 0.7; // Sesuaikan lebar spanduk dengan rak
+                let banH = 3.5;
+                let b1 = createEqBannerScen2(eqBrandsScen2[eqIdxScen2++ % 4], banW, banH);
+                b1.position.set(hdnX + w/2, banH/2 + 0.1, hdnZFront - 0.02);
+                currentScenarioGroup.add(b1);
+
+                let b2 = createEqBannerScen2(eqBrandsScen2[eqIdxScen2++ % 4], banW, banH);
+                b2.position.set(hdnX + w/2, banH/2 + 0.1, hdnZBack + 0.02);
+                currentScenarioGroup.add(b2);
+                
+                hdnX += w + 4.0;
+            });
+
+            // 2. Spanduk Rak Heavy Duty Horizontal (X: 2.5 - 36, Z: 10 - 14)
+            let hzhX = 2.5;
+            const hzhZFront = 10.0;
+            const hzhZBack = 14.0;
+            
+            for(let i=0; i<11; i++) {
+                let banW = 2.6 * 0.7; // Rak lebar 2.6
+                let banH = 3.5;
+                let b1 = createEqBannerScen2(eqBrandsScen2[eqIdxScen2++ % 4], banW, banH);
+                b1.position.set(hzhX + 1.3, banH/2 + 0.1, hzhZFront - 0.02);
+                currentScenarioGroup.add(b1);
+
+                let b2 = createEqBannerScen2(eqBrandsScen2[eqIdxScen2++ % 4], banW, banH);
+                b2.position.set(hzhX + 1.3, banH/2 + 0.1, hzhZBack + 0.02);
+                currentScenarioGroup.add(b2);
+                
+                hzhX += 2.6 + 0.1;
+            }
+
+            // 3. Spanduk Rak Small Duty (X: 36 - 60, Z Top: 9.5-14, Z Bot: 15-19.5)
+            let sdnX = 36;
+            const sdZTopFront = 9.5; const sdZTopBack = 14.0;
+            const sdZBotFront = 15.0; const sdZBotBack = 19.5;
+            const sdnWidths = [0.6, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 0.6];
+            
+            sdnWidths.forEach(w => {
+                let banW = w * 0.8;
+                let banH = 2.0; // Lebih pendek karena di bawah Mezzanine (Lantai 1)
+                
+                // Rak Top
+                let b1 = createEqBannerScen2(eqBrandsScen2[eqIdxScen2++ % 4], banW, banH); 
+                b1.position.set(sdnX + w/2, banH/2 + 0.1, sdZTopFront - 0.02); currentScenarioGroup.add(b1);
+                let b2 = createEqBannerScen2(eqBrandsScen2[eqIdxScen2++ % 4], banW, banH); 
+                b2.position.set(sdnX + w/2, banH/2 + 0.1, sdZTopBack + 0.02); currentScenarioGroup.add(b2);
+                
+                // Rak Bottom
+                let b3 = createEqBannerScen2(eqBrandsScen2[eqIdxScen2++ % 4], banW, banH); 
+                b3.position.set(sdnX + w/2, banH/2 + 0.1, sdZBotFront - 0.02); currentScenarioGroup.add(b3);
+                let b4 = createEqBannerScen2(eqBrandsScen2[eqIdxScen2++ % 4], banW, banH); 
+                b4.position.set(sdnX + w/2, banH/2 + 0.1, sdZBotBack + 0.02); currentScenarioGroup.add(b4);
+                
+                sdnX += w + 1.0;
+            });
+
+            // 6. QC & PACKING AREA (Dikalibrasi masing-masing kedalaman 8m)
             // TAMBAHAN: SPANDUK AREA & K3/5R SKENARIO 2
             // ==========================================
             function createBanner(text, bgColor, fgColor, width, height) {
@@ -1280,12 +1706,498 @@
         }
 
         // ==========================================
-        // SWITCH LOGIC & EVENT LISTENERS
+        // SKENARIO 2 (LAYOUT USULAN)
         // ==========================================
+        function buildSkenario2() {
+            // HELPER: Tapak Rak Abu-abu
+            function addRackFootprint(x, z, w, d, yBase) {
+                const geo = new THREE.PlaneGeometry(w, d);
+                const mat = new THREE.MeshStandardMaterial({ color: 0x999999, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.rotation.x = -Math.PI / 2; mesh.position.set(x + w/2, yBase + 0.018, z + d/2); mesh.receiveShadow = true; currentScenarioGroup.add(mesh);
+                const lineT = 0.1; const yMat = new THREE.MeshBasicMaterial({ color: 0xFFC107 }); const pY = yBase + 0.02;
+                const l1 = new THREE.Mesh(new THREE.BoxGeometry(w, 0.01, lineT), yMat); l1.position.set(x + w/2, pY, z); currentScenarioGroup.add(l1);
+                const l2 = new THREE.Mesh(new THREE.BoxGeometry(w, 0.01, lineT), yMat); l2.position.set(x + w/2, pY, z + d); currentScenarioGroup.add(l2);
+                const l3 = new THREE.Mesh(new THREE.BoxGeometry(lineT, 0.01, d), yMat); l3.position.set(x, pY, z + d/2); currentScenarioGroup.add(l3);
+                const l4 = new THREE.Mesh(new THREE.BoxGeometry(lineT, 0.01, d), yMat); l4.position.set(x + w, pY, z + d/2); currentScenarioGroup.add(l4);
+            }
+
+            // HELPER: Spanduk & Rambu
+            function createEqBanner(brand, bannerWidth, bannerHeight) {
+                const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 1024; const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 256, 1024); ctx.strokeStyle = '#2980b9'; ctx.lineWidth = 10; ctx.strokeRect(5, 5, 246, 1014);
+                ctx.fillStyle = '#c0392b'; ctx.font = 'bold 45px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(brand, 128, 80);
+                ctx.fillStyle = '#333333'; ctx.font = 'bold 20px Inter, sans-serif'; ctx.fillText("HEAVY EQUIPMENT", 128, 110);
+                ctx.fillStyle = '#f1c40f'; ctx.fillRect(40, 220, 140, 80); ctx.fillStyle = '#333333'; ctx.beginPath(); ctx.arc(60, 300, 25, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(160, 300, 25, 0, Math.PI*2); ctx.fill(); ctx.fillRect(180, 240, 40, 60); 
+                ctx.fillStyle = '#e67e22'; ctx.fillRect(60, 500, 100, 70); ctx.fillRect(160, 530, 60, 15); ctx.fillStyle = '#333333'; ctx.fillRect(40, 570, 140, 30); 
+                ctx.fillStyle = '#f39c12'; ctx.fillRect(60, 750, 120, 80); ctx.fillStyle = '#333333'; ctx.fillRect(30, 780, 25, 60); ctx.fillRect(50, 830, 140, 30); 
+                const tex = new THREE.CanvasTexture(canvas); return new THREE.Mesh(new THREE.PlaneGeometry(bannerWidth, bannerHeight), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+            }
+
+            function createSafetySign(type, width, height) {
+                const canvas = document.createElement('canvas'); canvas.width = type === 'direction' ? 512 : 256; canvas.height = type.includes('danger') ? 384 : 256; 
+                const ctx = canvas.getContext('2d'); const w = canvas.width; const h = canvas.height;
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                if (type === 'warning') { ctx.fillStyle = '#ffeb3b'; ctx.beginPath(); ctx.moveTo(w/2, 10); ctx.lineTo(w-10, h/2); ctx.lineTo(w/2, h-10); ctx.lineTo(10, h/2); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 10; ctx.stroke(); ctx.fillStyle = '#000'; ctx.font = 'bold 120px Arial'; ctx.fillText('!', w/2, h/2 + 10); } 
+                else if (type === 'forbidden_s') { ctx.fillStyle = '#000'; ctx.font = 'bold 120px Arial'; ctx.fillText('S', w/2, h/2 + 15); ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = 25; ctx.beginPath(); ctx.arc(w/2, h/2, w/2 - 25, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(w*0.25, h*0.25); ctx.lineTo(w*0.75, h*0.75); ctx.stroke(); }
+                else if (type === 'mandatory') { ctx.fillStyle = '#1976d2'; ctx.beginPath(); ctx.arc(w/2, h/2, w/2 - 20, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(w/2, h/2 + 10, 40, Math.PI, 0); ctx.fill(); ctx.fillRect(w/2 - 50, h/2 + 10, 100, 15); ctx.font = 'bold 24px Arial'; ctx.fillStyle = '#000'; ctx.fillText('WAJIB APD', w/2, h - 15); }
+                else if (type === 'facility') { ctx.strokeStyle = '#1976d2'; ctx.lineWidth = 20; ctx.strokeRect(10, 10, w-20, h-20); ctx.fillStyle = '#000'; ctx.font = 'bold 100px Arial'; ctx.fillText('🍴', w/2, h/2 + 10); }
+                else if (type === 'danger') { ctx.fillStyle = '#000'; ctx.fillRect(10, 10, w-20, h*0.35); ctx.fillStyle = '#f44336'; ctx.beginPath(); ctx.ellipse(w/2, h*0.18, w*0.4, h*0.12, 0, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = 'bold 45px Arial'; ctx.fillText('DANGER', w/2, h*0.18); ctx.fillStyle = '#000'; ctx.font = 'bold 40px Arial'; ctx.fillText('DO NOT', w/2, h*0.65); ctx.fillText('ENTER', w/2, h*0.80); ctx.strokeStyle = '#000'; ctx.lineWidth = 5; ctx.strokeRect(5, 5, w-10, h-10); }
+                else if (type === 'fire') { ctx.fillStyle = '#e53935'; ctx.beginPath(); ctx.moveTo(10, 10); ctx.lineTo(w-10, 10); ctx.lineTo(w/2, h-10); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = 'bold 30px Arial'; ctx.fillText('APAR', w/2, h*0.25); ctx.fillRect(w/2 - 15, h*0.35, 30, h*0.3); ctx.fillRect(w/2 - 5, h*0.3, 10, h*0.05); }
+                else if (type === 'direction') { ctx.fillStyle = '#2e7d32'; ctx.fillRect(0,0,w,h); ctx.strokeStyle = '#fff'; ctx.lineWidth = 10; ctx.strokeRect(10,10,w-20, h-20); ctx.fillStyle = '#fff'; ctx.font = 'bold 60px Arial'; ctx.fillText('PINTU KELUAR ➔', w/2, h/2); }
+                else if (type === 'eyewash') { ctx.fillStyle = '#2e7d32'; ctx.fillRect(0,0,w,h); ctx.strokeStyle = '#fff'; ctx.lineWidth = 10; ctx.strokeRect(10,10,w-20, h-20); ctx.fillStyle = '#fff'; ctx.font = 'bold 35px Arial'; ctx.fillText('EMERGENCY', w/2, h*0.35); ctx.font = 'bold 50px Arial'; ctx.fillText('EYE WASH', w/2, h*0.65); }
+                const tex = new THREE.CanvasTexture(canvas); return new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+            }
+
+            // 1. AREA OFFICE & ISTIRAHAT (Statis)
+            const offMat = new THREE.MeshStandardMaterial({ color: colors.officeWall });
+            const officeBuilding = new THREE.Mesh(new THREE.BoxGeometry(9, 5.5, 12), offMat);
+            officeBuilding.position.set(63 + 9/2, 5.5/2, 6 + 12/2); currentScenarioGroup.add(officeBuilding);
+            const belt = new THREE.Mesh(new THREE.BoxGeometry(9.1, 0.4, 12.1), new THREE.MeshStandardMaterial({ color: colors.pillar }));
+            belt.position.set(63 + 9/2, 5.5/2, 6 + 12/2); currentScenarioGroup.add(belt);
+            const restWall = new THREE.Mesh(new THREE.BoxGeometry(6, 3, 6), offMat);
+            restWall.position.set(3, 1.5, 3); currentScenarioGroup.add(restWall);
+
+            // 2. DEMARKASI AREA UTARA (Penyimpanan Abu-abu + Garis Kuning)
+            addSolidFloor(36, 0, 12, 6, 0x999999); createArea(36, 0, 12, 6, 0xFFC107, "Area Karantina");
+            addSolidFloor(48, 0, 12, 6, 0x999999); createArea(48, 0, 12, 6, 0xFFC107, "Area Transit");
+
+            for(let px = 50; px <= 58; px += 2.5) {
+                for(let pz = 1.5; pz <= 4.5; pz += 1.5) {
+                    if(Math.random() > 0.2) addPlasticPalletWithGoods(px, pz, currentScenarioGroup);
+                }
+            }
+
+            // FENCE AREA
+            function createFenceWall(x, z, length, rotationY) {
+                const height = 2.5; const group = new THREE.Group();
+                const postMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, roughness: 0.5 }); 
+                for (let i = 0; i <= length + 0.01; i += 2) {
+                    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, height, 8), postMat);
+                    post.position.set(i, height/2, 0); post.castShadow = true; group.add(post);
+                }
+                const panel = new THREE.Mesh(new THREE.PlaneGeometry(length, height), new THREE.MeshStandardMaterial({ color: 0x666666, wireframe: true, transparent: true, opacity: 0.4, side: THREE.DoubleSide }));
+                panel.position.set(length/2, height/2, 0); group.add(panel);
+                const railGeo = new THREE.BoxGeometry(length, 0.05, 0.05);
+                const topRail = new THREE.Mesh(railGeo, postMat); topRail.position.set(length/2, height - 0.1, 0); group.add(topRail);
+                const bottomRail = new THREE.Mesh(railGeo, postMat); bottomRail.position.set(length/2, 0.2, 0); group.add(bottomRail);
+                group.position.set(x, 0, z); group.rotation.y = rotationY; currentScenarioGroup.add(group);
+            }
+            createFenceWall(36, 6, 24, 0); 
+            createFenceWall(36, 6, 6, Math.PI / 2); createFenceWall(48, 6, 6, Math.PI / 2); createFenceWall(60, 6, 6, Math.PI / 2);
+
+            // JALUR LORONG (Aisles Hijau + Garis Kuning)
+            addSolidFloor(0, 6, 60, 4.0, 0x2e7d32); createArea(0, 6, 60, 4.0, 0xFFC107, "Jalur Forklift Atas (4m)");
+            addSolidFloor(0, 14, 40.5, 4.0, 0x2e7d32); createArea(0, 14, 40.5, 4.0, 0xFFC107, "Jalur Forklift Bawah HD (4m)");
+            // Diperlebar memenuhi sisa ruang (dari batas rak Z=19.5 hingga dinding Z=24)
+            addSolidFloor(40.5, 19.5, 19.5, 4.5, 0x2e7d32); createArea(40.5, 19.5, 19.5, 4.5, 0xFFC107, "Jalur Forklift SD Bawah");
+            addSolidFloor(36, 10, 4.5, 4.0, 0x2e7d32); createArea(36, 10, 4.5, 4.0, 0xFFC107, "Jalur Vertikal (4.5m)");
+
+            // BANNERS SETUP
+            const eqBrandsScen2 = ["KOMATSU", "LGMG", "XCMG", "SHANTUI"];
+            let eqIdxScen2 = 0;
+
+            // Hamparan hijau mengisi ruang kosong di bawah seluruh area Heavy Duty agar tidak ada lantai putih
+            addSolidFloor(6.2, 0.5, 29.8, 5.0, 0x2e7d32); // Area HD Vertikal
+            addSolidFloor(0, 10, 36, 4.0, 0x2e7d32); // Area HD Horizontal
+
+            // 3. RAK HEAVY DUTY VERTIKAL + Footprint Abu + Spanduk
+            let hdNx = 6.2; const hdNz = 0.5; const hdNDepth = 5;
+            const hdnWidths = [0.9, 1.8, 1.8, 1.8, 1.8, 1.8];
+            hdnWidths.forEach(w => {
+                addRackFootprint(hdNx, hdNz, w, hdNDepth, 0);
+                createRackRow(hdNx, hdNz, w, hdNDepth, 4, colors.rackHeavyFrame, colors.rackHeavyBeam, w > 1.0, 4.5, 0, true);
+                
+                let banW = w * 0.9; let banH = (w > 1.0) ? 3.8 : 3.5;
+                let b1 = createEqBanner(eqBrandsScen2[eqIdxScen2++ % 4], banW, banH); b1.position.set(hdNx + w/2, banH/2 + 0.1, hdNz - 0.02); currentScenarioGroup.add(b1);
+                let b2 = createEqBanner(eqBrandsScen2[eqIdxScen2++ % 4], banW, banH); b2.position.set(hdNx + w/2, banH/2 + 0.1, hdNz + hdNDepth + 0.02); currentScenarioGroup.add(b2);
+                hdNx += w + 4.0;
+            });
+
+            // 4. RAK HEAVY DUTY HORIZONTAL + Footprint Abu + Spanduk
+            const hzZ = 10; const hzDepth = 4; 
+            let hzX = 3.1; // Dimulai dari Aisle 3.1m di sisi paling barat
+            
+            // Rak Double Panjang 11.5m (5 Rak @ 2.3m)
+            for(let i=0; i<5; i++) {
+                addRackFootprint(hzX, hzZ, 2.3, hzDepth, 0);
+                createRackRow(hzX, hzZ, 2.3, hzDepth, 4, colors.rackHeavyFrame, colors.rackHeavyBeam, true, 4.5, 0, true);
+                
+                let banW = 2.3 * 0.9; let banH = 3.8;
+                let b1 = createEqBanner(eqBrandsScen2[eqIdxScen2++ % 4], banW, banH); b1.position.set(hzX + 1.15, banH/2 + 0.1, hzZ - 0.02); currentScenarioGroup.add(b1);
+                let b2 = createEqBanner(eqBrandsScen2[eqIdxScen2++ % 4], banW, banH); b2.position.set(hzX + 1.15, banH/2 + 0.1, hzZ + hzDepth + 0.02); currentScenarioGroup.add(b2);
+                hzX += 2.3; 
+            }
+
+            hzX += 3.1; // Aisle potong tengah 3.1m
+
+            // Rak Double Panjang 13.8m (6 Rak @ 2.3m)
+            for(let i=0; i<6; i++) {
+                addRackFootprint(hzX, hzZ, 2.3, hzDepth, 0);
+                createRackRow(hzX, hzZ, 2.3, hzDepth, 4, colors.rackHeavyFrame, colors.rackHeavyBeam, true, 4.5, 0, true);
+                
+                let banW = 2.3 * 0.9; let banH = 3.8;
+                let b1 = createEqBanner(eqBrandsScen2[eqIdxScen2++ % 4], banW, banH); b1.position.set(hzX + 1.15, banH/2 + 0.1, hzZ - 0.02); currentScenarioGroup.add(b1);
+                let b2 = createEqBanner(eqBrandsScen2[eqIdxScen2++ % 4], banW, banH); b2.position.set(hzX + 1.15, banH/2 + 0.1, hzZ + hzDepth + 0.02); currentScenarioGroup.add(b2);
+                hzX += 2.3; 
+            }
+
+            // 5. AREA CONTAINER & FLOOR KOLIAN
+            const contGeo = new THREE.BoxGeometry(2.5, 2.5, 6); const contMat = new THREE.MeshStandardMaterial({ color: 0x2980b9 }); 
+            for(let i=0; i<6; i++) {
+                const startX = i * 6;
+                const cont = new THREE.Mesh(contGeo, contMat); cont.position.set(startX + 1.25, 1.25, 21); cont.castShadow = true; currentScenarioGroup.add(cont);
+                
+                // Penyimpanan Floor Area (Abu-abu)
+                addSolidFloor(startX + 2.5, 18, 3.5, 6, 0x999999); createArea(startX + 2.5, 18, 3.5, 6, 0xFFC107, "Floor Area");
+
+                if (startX < 30) {
+                    for(let px = startX + 3.2; px <= startX + 5.0; px += 1.5) { 
+                        for(let pz = 19; pz <= 23; pz += 1.5) {
+                            if(Math.random() > 0.3) {
+                                const pallet = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.15, 1.0), new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.9 }));
+                                pallet.position.set(px, 0.075, pz); pallet.castShadow = true; currentScenarioGroup.add(pallet);
+                                const boxH = 0.5 + Math.random() * 0.4;
+                                const box = new THREE.Mesh(new THREE.BoxGeometry(1.1, boxH, 0.9), new THREE.MeshStandardMaterial({ color: 0xb08d6a, roughness: 0.8 }));
+                                box.position.set(px, 0.15 + boxH/2, pz); box.castShadow = true; currentScenarioGroup.add(box);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Mezzanine Kontainer - FULL HIJAU
+            const mezContW = 32.2; const mezContD = 6; const mezContH = 2.5; const mezContThick = 0.15;
+            const mezContFloor = new THREE.Mesh(new THREE.BoxGeometry(mezContW, mezContThick, mezContD), new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 1.0 })); 
+            mezContFloor.position.set(mezContW/2, mezContH + mezContThick/2, 21); mezContFloor.castShadow = true; mezContFloor.receiveShadow = true; currentScenarioGroup.add(mezContFloor);
+            
+            // Railings
+            const postMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, roughness: 0.5 });
+            const barrierGroupEast = new THREE.Group();
+            const topRailEast = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, mezContD), postMat); topRailEast.position.set(0, 1.0, 0); barrierGroupEast.add(topRailEast);
+            const midRailEast = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, mezContD), postMat); midRailEast.position.set(0, 0.5, 0); barrierGroupEast.add(midRailEast);
+            for (let bz = -mezContD/2; bz <= mezContD/2 + 0.01; bz += 1.5) {
+                const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.0, 8), postMat); post.position.set(0, 0.5, bz); barrierGroupEast.add(post);
+            }
+            barrierGroupEast.position.set(mezContW - 0.05, mezContH + mezContThick, 21); currentScenarioGroup.add(barrierGroupEast);
+
+            const barrierGroupNorth = new THREE.Group();
+            const topRailNorth = new THREE.Mesh(new THREE.BoxGeometry(mezContW, 0.05, 0.05), postMat); topRailNorth.position.set(mezContW/2, 1.0, 0); barrierGroupNorth.add(topRailNorth);
+            const midRailNorth = new THREE.Mesh(new THREE.BoxGeometry(mezContW, 0.05, 0.05), postMat); midRailNorth.position.set(mezContW/2, 0.5, 0); barrierGroupNorth.add(midRailNorth);
+            for (let bx = 0; bx <= mezContW; bx += 1.5) {
+                const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.0, 8), postMat); post.position.set(bx, 0.5, 0); barrierGroupNorth.add(post);
+            }
+            barrierGroupNorth.position.set(0, mezContH + mezContThick, 18.05); currentScenarioGroup.add(barrierGroupNorth);
+
+            // Tambahkan Tumpukan Palet & Kardus Padat di Lantai 2 Mezzanine Kontainer
+            for(let px = 1.5; px <= mezContW - 1.5; px += 1.4) {
+                for(let pz = 18.8; pz <= 23.5; pz += 1.2) {
+                    if(Math.random() > 0.15) { // 85% kemungkinan terisi agar terlihat sangat padat
+                        // 1. Palet Kayu di dasar
+                        const pallet = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.15, 1.0), new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.9 }));
+                        pallet.position.set(px, mezContH + mezContThick + 0.075, pz);
+                        pallet.castShadow = true;
+                        currentScenarioGroup.add(pallet);
+                        
+                        // 2. Tumpukan Kardus (Ditumpuk 2 hingga 3 susun ke atas)
+                        const numStacks = Math.floor(Math.random() * 2) + 2; 
+                        let currentY = mezContH + mezContThick + 0.15;
+                        
+                        for(let s = 0; s < numStacks; s++) {
+                            const boxH = 0.4 + Math.random() * 0.4;
+                            const box = new THREE.Mesh(new THREE.BoxGeometry(1.1, boxH, 0.9), new THREE.MeshStandardMaterial({ color: 0xb08d6a, roughness: 0.8 }));
+                            box.position.set(px, currentY + boxH/2, pz);
+                            box.castShadow = true;
+                            currentScenarioGroup.add(box);
+                            
+                            // Garis tepian kardus agar tumpukan terlihat jelas
+                            const edges = new THREE.EdgesGeometry(box.geometry);
+                            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x444444, linewidth: 1 }));
+                            line.position.copy(box.position);
+                            currentScenarioGroup.add(line);
+                            
+                            currentY += boxH; // Naik ke level tumpukan berikutnya
+                        }
+                    }
+                }
+            }
+
+            // 6. RACKING AREA SMALL DUTY & MEZZANINE + Footprint + Spanduk
+            let sdX = 36; const sdDepth = 4.5; const sdZTop = 9.5; const sdZBottom = 15.0; 
+            const mezW = 24; const mezD = 10.0; const mezH = 2.5; const mezThickness = 0.1;
+            
+            // Lantai Mezzanine SD - FULL HIJAU
+            const mezFloor = new THREE.Mesh(new THREE.BoxGeometry(mezW, mezThickness, mezD), new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 1.0 }));
+            mezFloor.position.set(sdX + mezW/2, mezH + mezThickness/2, sdZTop + mezD/2); currentScenarioGroup.add(mezFloor);
+            
+            // Aisle Picking (Hijau)
+            addSolidFloor(36, 14, 24, 1.0, 0x2e7d32); createArea(36, 14, 24, 1.0, 0xFFC107, "Aisle Picking");
+
+            const sdWidths = [0.6, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 0.6];
+            
+            for (let floor = 0; floor < 2; floor++) {
+                let yOffset = floor === 0 ? 0 : mezH + mezThickness;
+                let rx = sdX;
+                
+                sdWidths.forEach(w => {
+                    addRackFootprint(rx, sdZTop, w, sdDepth, yOffset);
+                    addRackFootprint(rx, sdZBottom, w, sdDepth, yOffset);
+                    createRackRow(rx, sdZTop, w, sdDepth, 3, colors.rackSmallFrame, colors.rackSmallShelf, w > 1.0, mezH, yOffset, false, true);
+                    createRackRow(rx, sdZBottom, w, sdDepth, 3, colors.rackSmallFrame, colors.rackSmallShelf, w > 1.0, mezH, yOffset, false, true);
+                    
+                    // Spanduk hanya di Lantai 1 agar tidak menembus atap
+                    if(floor === 0) {
+                        let banW = w * 0.9; let banH = 2.0; 
+                        let b1 = createEqBanner(eqBrandsScen2[eqIdxScen2++ % 4], banW, banH); b1.position.set(rx + w/2, banH/2 + 0.1, sdZTop - 0.02); currentScenarioGroup.add(b1);
+                        let b2 = createEqBanner(eqBrandsScen2[eqIdxScen2++ % 4], banW, banH); b2.position.set(rx + w/2, banH/2 + 0.1, sdZTop + sdDepth + 0.02); currentScenarioGroup.add(b2);
+                        let b3 = createEqBanner(eqBrandsScen2[eqIdxScen2++ % 4], banW, banH); b3.position.set(rx + w/2, banH/2 + 0.1, sdZBottom - 0.02); currentScenarioGroup.add(b3);
+                        let b4 = createEqBanner(eqBrandsScen2[eqIdxScen2++ % 4], banW, banH); b4.position.set(rx + w/2, banH/2 + 0.1, sdZBottom + sdDepth + 0.02); currentScenarioGroup.add(b4);
+                    }
+                    rx += w + 1.0; 
+                });
+            }
+
+            // 7. QC & PACKING AREA (Area Kerja Biru + Garis Kuning)
+            addSolidFloor(60, 0, 6, 8, 0x2196F3); createArea(60, 0, 6, 8, 0xFFC107, "QC Out");
+            addSolidFloor(60, 8, 6, 8, 0x2196F3); createArea(60, 8, 6, 8, 0xFFC107, "Packing");
+            addSolidFloor(60, 16, 6, 8, 0x2196F3); createArea(60, 16, 6, 8, 0xFFC107, "QC In");
+
+            // AKTIVITAS PEKERJA, MEJA, & FORKLIFT (Sama seperti Skenario 1)
+            createDeskWithPC(63, 4, -Math.PI / 2, currentScenarioGroup);
+            createWorker(64, 4, Math.PI / 2, 0x9C27B0, currentScenarioGroup);
+            
+            const packTable = new THREE.Mesh(new THREE.BoxGeometry(3, 0.8, 1.5), new THREE.MeshStandardMaterial({color: 0x90A4AE}));
+            packTable.position.set(63, 0.4, 12); packTable.castShadow = true; currentScenarioGroup.add(packTable);
+            createWorker(63, 10.5, 0, 0xFF5722, currentScenarioGroup);
+            createWorker(63, 13.5, Math.PI, 0xFF5722, currentScenarioGroup);
+
+            createDeskWithPC(63, 20, -Math.PI / 2, currentScenarioGroup);
+            createWorker(64, 20, Math.PI / 2, 0x9C27B0, currentScenarioGroup);
+
+            // Forklift beroperasi (Kordinat disesuaikan dengan Lorong Skenario 2)
+            createForklift(16, 21.75, Math.PI, currentScenarioGroup); // Forklift di Aisle SD Bawah
+            createForklift(28, 8.0, 0, currentScenarioGroup); // Forklift di Aisle Atas
+            
+            // Pekerja Picking di Area Small Duty
+            createWorker(42, 14.5, Math.PI / 2, 0x4CAF50, currentScenarioGroup);
+            createWorker(50, 14.5, -Math.PI / 2, 0x4CAF50, currentScenarioGroup);
+
+            // AKTIVITAS LOADING & UNLOADING (EXPDC) & LOGO
+            createTruck(77, 4.5, 0, currentScenarioGroup); // Truk Utara
+            createForklift(72.5, 4.5, 0, currentScenarioGroup); 
+            createWorker(73.5, 3.5, -Math.PI / 4, 0xFF9800, currentScenarioGroup); 
+            
+            createTruck(77, 19.5, 0, currentScenarioGroup); // Truk Selatan
+            createForklift(72.5, 19.5, 0, currentScenarioGroup); 
+            createWorker(73.5, 20.5, Math.PI / 4, 0xFF9800, currentScenarioGroup);
+
+            // LOGO PERUSAHAAN
+            const logoGeo = new THREE.PlaneGeometry(6, 3); const logoMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, side: THREE.DoubleSide });
+            const logoDepan = new THREE.Mesh(logoGeo, logoMat.clone()); logoDepan.position.set(72.15, 4.5, 12); logoDepan.rotation.y = Math.PI / 2; currentScenarioGroup.add(logoDepan);
+            const logoBelakang = new THREE.Mesh(logoGeo, logoMat.clone()); logoBelakang.position.set(0.15, 4.5, 12); logoBelakang.rotation.y = Math.PI / 2; currentScenarioGroup.add(logoBelakang);
+
+            const texLoader = new THREE.TextureLoader(); texLoader.crossOrigin = "Anonymous";
+            texLoader.load('image_a62588.png', function(texture) {
+                logoDepan.material.map = texture; logoDepan.material.needsUpdate = true; logoBelakang.material.map = texture; logoBelakang.material.needsUpdate = true;
+            }, undefined, function(err) {
+                const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 256; const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,512,256); ctx.fillStyle = '#c0392b'; ctx.font = 'bold 150px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('BSS', 256, 128);
+                const fallbackTex = new THREE.CanvasTexture(canvas); logoDepan.material.map = fallbackTex; logoDepan.material.needsUpdate = true; logoBelakang.material.map = fallbackTex; logoBelakang.material.needsUpdate = true;
+            });
+
+            // 8. RAMBU-RAMBU & SPANDUK AREA
+            function createBannerText(text, bgColor, fgColor, width, height) {
+                const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 256; const ctx = canvas.getContext('2d');
+                ctx.fillStyle = bgColor; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.strokeStyle = fgColor; ctx.lineWidth = 15; ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+                ctx.fillStyle = fgColor; ctx.font = 'bold 70px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+                const tex = new THREE.CanvasTexture(canvas); return new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+            }
+
+            const bannerY = 4.5; const zWallNorth = 0.11;
+            const bKarantina = createBannerText("AREA KARANTINA", "#ff0000", "#ffffff", 6, 1.2); bKarantina.position.set(42, bannerY, zWallNorth); currentScenarioGroup.add(bKarantina);
+            const bTransit = createBannerText("AREA TRANSIT", "#f39c12", "#ffffff", 6, 1.2); bTransit.position.set(54, bannerY, zWallNorth); currentScenarioGroup.add(bTransit);
+
+            const xOfficeWall = 62.85;
+            const bK3 = createBannerText("UTAMAKAN K3", "#4CAF50", "#ffffff", 4.5, 1.2); bK3.position.set(xOfficeWall, bannerY, 9); bK3.rotation.y = -Math.PI / 2; currentScenarioGroup.add(bK3);
+            const b5R = createBannerText("BUDAYAKAN 5R", "#2196F3", "#ffffff", 4.5, 1.2); b5R.position.set(xOfficeWall, bannerY, 15); b5R.rotation.y = -Math.PI / 2; currentScenarioGroup.add(b5R);
+
+            const signRest = createSafetySign('facility', 1.0, 1.0); signRest.position.set(3, 2.5, 6.01); currentScenarioGroup.add(signRest);
+            const signWarn = createSafetySign('warning', 1.0, 1.0); signWarn.position.set(18, 3.5, 9.5); currentScenarioGroup.add(signWarn);
+            const signStop = createSafetySign('forbidden_s', 1.0, 1.0); signStop.position.set(36, 3.5, 21.0); signStop.rotation.y = Math.PI; currentScenarioGroup.add(signStop);
+            const signApd = createSafetySign('mandatory', 1.0, 1.0); signApd.position.set(71.9, 3.0, 18); signApd.rotation.y = -Math.PI/2; currentScenarioGroup.add(signApd);
+            const signDanger = createSafetySign('danger', 1.0, 1.5); signDanger.position.set(42, 2.5, 6.01); currentScenarioGroup.add(signDanger);
+            const signApar = createSafetySign('fire', 0.8, 0.8); signApar.position.set(30, 2.5, 0.41); currentScenarioGroup.add(signApar);
+            const signEye = createSafetySign('eyewash', 1.0, 1.0); signEye.position.set(65, 3.5, 0.11); currentScenarioGroup.add(signEye);
+            const signDir = createSafetySign('direction', 2.0, 1.0); signDir.position.set(12, 5.0, 6); currentScenarioGroup.add(signDir);
+        }
+
+        // ==========================================
+        // SKENARIO 3 (RANCANGAN LAYOUT 3)
+        // ==========================================
+        function buildSkenario3() {
+            // HELPER: Tapak Rak Abu-abu
+            function addRackFootprint(x, z, w, d, yBase) {
+                const geo = new THREE.PlaneGeometry(w, d);
+                const mat = new THREE.MeshStandardMaterial({ color: 0x999999, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.rotation.x = -Math.PI / 2; mesh.position.set(x + w/2, yBase + 0.018, z + d/2); mesh.receiveShadow = true; currentScenarioGroup.add(mesh);
+                const lineT = 0.1; const yMat = new THREE.MeshBasicMaterial({ color: 0xFFC107 }); const pY = yBase + 0.02;
+                const l1 = new THREE.Mesh(new THREE.BoxGeometry(w, 0.01, lineT), yMat); l1.position.set(x + w/2, pY, z); currentScenarioGroup.add(l1);
+                const l2 = new THREE.Mesh(new THREE.BoxGeometry(w, 0.01, lineT), yMat); l2.position.set(x + w/2, pY, z + d); currentScenarioGroup.add(l2);
+                const l3 = new THREE.Mesh(new THREE.BoxGeometry(lineT, 0.01, d), yMat); l3.position.set(x, pY, z + d/2); currentScenarioGroup.add(l3);
+                const l4 = new THREE.Mesh(new THREE.BoxGeometry(lineT, 0.01, d), yMat); l4.position.set(x + w, pY, z + d/2); currentScenarioGroup.add(l4);
+            }
+
+            // HELPER: Spanduk & Rambu
+            function createEqBanner(brand, bannerWidth, bannerHeight) {
+                const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 1024; const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 256, 1024); ctx.strokeStyle = '#2980b9'; ctx.lineWidth = 10; ctx.strokeRect(5, 5, 246, 1014);
+                ctx.fillStyle = '#c0392b'; ctx.font = 'bold 45px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(brand, 128, 80);
+                ctx.fillStyle = '#333333'; ctx.font = 'bold 20px Inter, sans-serif'; ctx.fillText("HEAVY EQUIPMENT", 128, 110);
+                ctx.fillStyle = '#f1c40f'; ctx.fillRect(40, 220, 140, 80); ctx.fillStyle = '#333333'; ctx.beginPath(); ctx.arc(60, 300, 25, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(160, 300, 25, 0, Math.PI*2); ctx.fill(); ctx.fillRect(180, 240, 40, 60); 
+                ctx.fillStyle = '#e67e22'; ctx.fillRect(60, 500, 100, 70); ctx.fillRect(160, 530, 60, 15); ctx.fillStyle = '#333333'; ctx.fillRect(40, 570, 140, 30); 
+                ctx.fillStyle = '#f39c12'; ctx.fillRect(60, 750, 120, 80); ctx.fillStyle = '#333333'; ctx.fillRect(30, 780, 25, 60); ctx.fillRect(50, 830, 140, 30); 
+                const tex = new THREE.CanvasTexture(canvas); return new THREE.Mesh(new THREE.PlaneGeometry(bannerWidth, bannerHeight), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+            }
+
+            function createSafetySign(type, width, height) {
+                const canvas = document.createElement('canvas'); canvas.width = type === 'direction' ? 512 : 256; canvas.height = type.includes('danger') ? 384 : 256; 
+                const ctx = canvas.getContext('2d'); const w = canvas.width; const h = canvas.height;
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                if (type === 'warning') { ctx.fillStyle = '#ffeb3b'; ctx.beginPath(); ctx.moveTo(w/2, 10); ctx.lineTo(w-10, h/2); ctx.lineTo(w/2, h-10); ctx.lineTo(10, h/2); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 10; ctx.stroke(); ctx.fillStyle = '#000'; ctx.font = 'bold 120px Arial'; ctx.fillText('!', w/2, h/2 + 10); } 
+                else if (type === 'forbidden_s') { ctx.fillStyle = '#000'; ctx.font = 'bold 120px Arial'; ctx.fillText('S', w/2, h/2 + 15); ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = 25; ctx.beginPath(); ctx.arc(w/2, h/2, w/2 - 25, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(w*0.25, h*0.25); ctx.lineTo(w*0.75, h*0.75); ctx.stroke(); }
+                else if (type === 'mandatory') { ctx.fillStyle = '#1976d2'; ctx.beginPath(); ctx.arc(w/2, h/2, w/2 - 20, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(w/2, h/2 + 10, 40, Math.PI, 0); ctx.fill(); ctx.fillRect(w/2 - 50, h/2 + 10, 100, 15); ctx.font = 'bold 24px Arial'; ctx.fillStyle = '#000'; ctx.fillText('WAJIB APD', w/2, h - 15); }
+                else if (type === 'facility') { ctx.strokeStyle = '#1976d2'; ctx.lineWidth = 20; ctx.strokeRect(10, 10, w-20, h-20); ctx.fillStyle = '#000'; ctx.font = 'bold 100px Arial'; ctx.fillText('🍴', w/2, h/2 + 10); }
+                else if (type === 'danger') { ctx.fillStyle = '#000'; ctx.fillRect(10, 10, w-20, h*0.35); ctx.fillStyle = '#f44336'; ctx.beginPath(); ctx.ellipse(w/2, h*0.18, w*0.4, h*0.12, 0, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = 'bold 45px Arial'; ctx.fillText('DANGER', w/2, h*0.18); ctx.fillStyle = '#000'; ctx.font = 'bold 40px Arial'; ctx.fillText('DO NOT', w/2, h*0.65); ctx.fillText('ENTER', w/2, h*0.80); ctx.strokeStyle = '#000'; ctx.lineWidth = 5; ctx.strokeRect(5, 5, w-10, h-10); }
+                else if (type === 'fire') { ctx.fillStyle = '#e53935'; ctx.beginPath(); ctx.moveTo(10, 10); ctx.lineTo(w-10, 10); ctx.lineTo(w/2, h-10); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = 'bold 30px Arial'; ctx.fillText('APAR', w/2, h*0.25); ctx.fillRect(w/2 - 15, h*0.35, 30, h*0.3); ctx.fillRect(w/2 - 5, h*0.3, 10, h*0.05); }
+                else if (type === 'direction') { ctx.fillStyle = '#2e7d32'; ctx.fillRect(0,0,w,h); ctx.strokeStyle = '#fff'; ctx.lineWidth = 10; ctx.strokeRect(10,10,w-20, h-20); ctx.fillStyle = '#fff'; ctx.font = 'bold 60px Arial'; ctx.fillText('PINTU KELUAR ➔', w/2, h/2); }
+                else if (type === 'eyewash') { ctx.fillStyle = '#2e7d32'; ctx.fillRect(0,0,w,h); ctx.strokeStyle = '#fff'; ctx.lineWidth = 10; ctx.strokeRect(10,10,w-20, h-20); ctx.fillStyle = '#fff'; ctx.font = 'bold 35px Arial'; ctx.fillText('EMERGENCY', w/2, h*0.35); ctx.font = 'bold 50px Arial'; ctx.fillText('EYE WASH', w/2, h*0.65); }
+                const tex = new THREE.CanvasTexture(canvas); return new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+            }
+
+            // 1. AREA OFFICE & ISTIRAHAT (Statis)
+            const offMat = new THREE.MeshStandardMaterial({ color: colors.officeWall });
+            const officeBuilding = new THREE.Mesh(new THREE.BoxGeometry(9, 5.5, 12), offMat);
+            officeBuilding.position.set(63 + 9/2, 5.5/2, 6 + 12/2); currentScenarioGroup.add(officeBuilding);
+            const belt = new THREE.Mesh(new THREE.BoxGeometry(9.1, 0.4, 12.1), new THREE.MeshStandardMaterial({ color: colors.pillar }));
+            belt.position.set(63 + 9/2, 5.5/2, 6 + 12/2); currentScenarioGroup.add(belt);
+            const restWall = new THREE.Mesh(new THREE.BoxGeometry(6, 3, 6), offMat);
+            restWall.position.set(3, 1.5, 3); currentScenarioGroup.add(restWall);
+
+            // 2. DEMARKASI AREA UTARA (Penyimpanan Abu-abu + Garis Kuning)
+            addSolidFloor(6, 0, 18, 6, 0x999999); createArea(6, 0, 18, 6, 0xFFC107, "Floor Area"); 
+            addSolidFloor(24, 0, 12, 6, 0x999999); createArea(24, 0, 12, 6, 0xFFC107, "Area Module New");
+            addSolidFloor(36, 0, 12, 6, 0x999999); createArea(36, 0, 12, 6, 0xFFC107, "Area Karantina");  
+            addSolidFloor(48, 0, 12, 6, 0x999999); createArea(48, 0, 12, 6, 0xFFC107, "Area Transit");    
+
+            // 3. DEMARKASI TIMUR (Area Kerja Biru + Garis Kuning)
+            addSolidFloor(60, 0, 6, 8, 0x2196F3); createArea(60, 0, 6, 8, 0xFFC107, "QC Out");
+            addSolidFloor(60, 8, 6, 8, 0x2196F3); createArea(60, 8, 6, 8, 0xFFC107, "Packing");
+            addSolidFloor(60, 16, 6, 8, 0x2196F3); createArea(60, 16, 6, 8, 0xFFC107, "QC In");
+
+            // PEMBUATAN PAGAR (RAILING)
+            function createFenceWall(x, z, length, rotationY) {
+                const height = 2.5; const group = new THREE.Group();
+                const postMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, roughness: 0.5 }); 
+                for (let i = 0; i <= length + 0.01; i += 2) {
+                    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, height, 8), postMat);
+                    post.position.set(i, height/2, 0); post.castShadow = true; group.add(post);
+                }
+                const panel = new THREE.Mesh(new THREE.PlaneGeometry(length, height), new THREE.MeshStandardMaterial({ color: 0x666666, wireframe: true, transparent: true, opacity: 0.4, side: THREE.DoubleSide }));
+                panel.position.set(length/2, height/2, 0); group.add(panel);
+                const railGeo = new THREE.BoxGeometry(length, 0.05, 0.05);
+                const topRail = new THREE.Mesh(railGeo, postMat); topRail.position.set(length/2, height - 0.1, 0); group.add(topRail);
+                const bottomRail = new THREE.Mesh(railGeo, postMat); bottomRail.position.set(length/2, 0.2, 0); group.add(bottomRail);
+                group.position.set(x, 0, z); group.rotation.y = rotationY; currentScenarioGroup.add(group);
+            }
+
+            createFenceWall(6, 6, 54, 0); 
+            createFenceWall(6, 6, 6, Math.PI / 2); createFenceWall(24, 6, 6, Math.PI / 2); createFenceWall(36, 6, 6, Math.PI / 2); createFenceWall(48, 6, 6, Math.PI / 2);
+            createFenceWall(60, 0, 24, Math.PI / 2); 
+
+            // 4. HAMPARAN HIJAU PENUH & RAK SISI BARAT & SELATAN (Dgn Footprint + Banners Dinamis)
+            // Menutup SELURUH sisa ruang putih (X: 0-60, Z: 6-24) dengan lantai epoksi hijau
+            addSolidFloor(0, 6, 60, 18.0, 0x2e7d32);
+
+            const eqBrandsScen3 = ["KOMATSU", "LGMG", "XCMG", "SHANTUI"];
+            let eqIdxScen3 = 0;
+            
+            function buildRackScen3(x, z, w, d, frontZ, backZ) {
+                addRackFootprint(x, z, w, d, 0);
+                createRackRow(x, z, w, d, 4, colors.rackHeavyFrame, colors.rackHeavyBeam, w > 1.0, 4.0, 0, false, false);
+                
+                let banW = w * 0.9; let banH = (w > 1.0) ? 3.8 : 3.5;
+                let b1 = createEqBanner(eqBrandsScen3[eqIdxScen3++ % 4], banW, banH); b1.position.set(x + w/2, banH/2 + 0.1, frontZ - 0.02); currentScenarioGroup.add(b1);
+                let b2 = createEqBanner(eqBrandsScen3[eqIdxScen3++ % 4], banW, banH); b2.position.set(x + w/2, banH/2 + 0.1, backZ + 0.02); currentScenarioGroup.add(b2);
+            }
+
+            buildRackScen3(0.2, 6.0, 1.0, 18.0, 6.0, 24.0); // Perimeter West
+            buildRackScen3(1.5, 7.5, 3.5, 3.0, 7.5, 10.5); // Row 1
+            buildRackScen3(7.0, 7.5, 4.5, 3.0, 7.5, 10.5); // Row 1
+            buildRackScen3(1.5, 13.0, 3.5, 3.0, 13.0, 16.0); // Row 2
+            buildRackScen3(7.0, 13.0, 4.5, 3.0, 13.0, 16.0); // Row 2
+            buildRackScen3(1.5, 18.5, 3.5, 2.0, 18.5, 20.5); // Row 3
+            buildRackScen3(7.0, 18.5, 4.5, 2.0, 18.5, 20.5); // Row 3
+            buildRackScen3(1.5, 22.5, 3.5, 1.5, 22.5, 24.0); // Perimeter South
+            buildRackScen3(7.0, 22.5, 4.5, 1.5, 22.5, 24.0); // Perimeter South
+            buildRackScen3(12.0, 22.5, 12.0, 1.5, 22.5, 24.0); // Perimeter South
+
+            // 5. JALUR LORONG POTONG & AREA AISLE SISI TIMUR (Garis Kuning)
+            // Lantai hijau sudah di-cover penuh di atas, di sini cukup menggambar batas demarkasi kuningnya saja
+            createArea(24.0, 6.5, 36.0, 4.5, 0xFFC107, "JALUR FORKLIFT (AISLE)");
+            createArea(24.0, 14.5, 36.0, 1.0, 0xFFC107, "AISLE PICKING (1M)");
+            createArea(24.0, 18.5, 36.0, 4.5, 0xFFC107, "JALUR FORKLIFT (AISLE)");
+
+            // 6. AKTIVITAS TRUCK LOADING/UNLOADING & LOGO
+            createTruck(77, 4.5, 0, currentScenarioGroup); createForklift(72.5, 4.5, 0, currentScenarioGroup); createWorker(73.5, 3.5, -Math.PI / 4, 0xFF9800, currentScenarioGroup);
+            createTruck(77, 19.5, 0, currentScenarioGroup); createForklift(72.5, 19.5, 0, currentScenarioGroup); createWorker(73.5, 20.5, Math.PI / 4, 0xFF9800, currentScenarioGroup);
+
+            const logoGeo = new THREE.PlaneGeometry(6, 3); const logoMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, side: THREE.DoubleSide });
+            const logoDepan = new THREE.Mesh(logoGeo, logoMat.clone()); logoDepan.position.set(72.15, 4.5, 12); logoDepan.rotation.y = Math.PI / 2; currentScenarioGroup.add(logoDepan);
+            const logoBelakang = new THREE.Mesh(logoGeo, logoMat.clone()); logoBelakang.position.set(0.15, 4.5, 12); logoBelakang.rotation.y = Math.PI / 2; currentScenarioGroup.add(logoBelakang);
+
+            const texLoader = new THREE.TextureLoader(); texLoader.crossOrigin = "Anonymous";
+            texLoader.load('image_a62588.png', function(texture) {
+                logoDepan.material.map = texture; logoDepan.material.needsUpdate = true; logoBelakang.material.map = texture; logoBelakang.material.needsUpdate = true;
+            }, undefined, function(err) {
+                const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 256; const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,512,256); ctx.fillStyle = '#c0392b'; ctx.font = 'bold 150px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('BSS', 256, 128);
+                const fallbackTex = new THREE.CanvasTexture(canvas); logoDepan.material.map = fallbackTex; logoDepan.material.needsUpdate = true; logoBelakang.material.map = fallbackTex; logoBelakang.material.needsUpdate = true;
+            });
+
+            // 7. RAMBU-RAMBU & SPANDUK AREA
+            function createBannerText(text, bgColor, fgColor, width, height) {
+                const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 256; const ctx = canvas.getContext('2d');
+                ctx.fillStyle = bgColor; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.strokeStyle = fgColor; ctx.lineWidth = 15; ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+                ctx.fillStyle = fgColor; ctx.font = 'bold 70px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+                const tex = new THREE.CanvasTexture(canvas); return new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+            }
+
+            const bannerY = 4.5; const zWallNorth = 0.11;
+            const bFloor = createBannerText("FLOOR AREA", "#3498db", "#ffffff", 6, 1.2); bFloor.position.set(15, bannerY, zWallNorth); currentScenarioGroup.add(bFloor);
+            const bMod = createBannerText("MODULE NEW", "#9b59b6", "#ffffff", 6, 1.2); bMod.position.set(30, bannerY, zWallNorth); currentScenarioGroup.add(bMod);
+            const bKar = createBannerText("AREA KARANTINA", "#e74c3c", "#ffffff", 6, 1.2); bKar.position.set(42, bannerY, zWallNorth); currentScenarioGroup.add(bKar);
+            const bTra = createBannerText("AREA TRANSIT", "#f1c40f", "#ffffff", 6, 1.2); bTra.position.set(54, bannerY, zWallNorth); currentScenarioGroup.add(bTra);
+
+            const xOfficeWall = 62.85;
+            const bK3 = createBannerText("UTAMAKAN K3", "#4CAF50", "#ffffff", 4.5, 1.2); bK3.position.set(xOfficeWall, bannerY, 9); bK3.rotation.y = -Math.PI / 2; currentScenarioGroup.add(bK3);
+            const b5R = createBannerText("BUDAYAKAN 5R", "#2196F3", "#ffffff", 4.5, 1.2); b5R.position.set(xOfficeWall, bannerY, 15); b5R.rotation.y = -Math.PI / 2; currentScenarioGroup.add(b5R);
+
+            const signRest = createSafetySign('facility', 1.0, 1.0); signRest.position.set(3, 2.5, 6.01); currentScenarioGroup.add(signRest);
+            const signWarn = createSafetySign('warning', 1.0, 1.0); signWarn.position.set(18, 3.5, 9.5); currentScenarioGroup.add(signWarn);
+            const signStop = createSafetySign('forbidden_s', 1.0, 1.0); signStop.position.set(36, 3.5, 21.0); signStop.rotation.y = Math.PI; currentScenarioGroup.add(signStop);
+            const signApd = createSafetySign('mandatory', 1.0, 1.0); signApd.position.set(71.9, 3.0, 18); signApd.rotation.y = -Math.PI/2; currentScenarioGroup.add(signApd);
+            const signDanger = createSafetySign('danger', 1.0, 1.5); signDanger.position.set(42, 2.5, 6.01); currentScenarioGroup.add(signDanger);
+            const signApar = createSafetySign('fire', 0.8, 0.8); signApar.position.set(30, 2.5, 0.41); currentScenarioGroup.add(signApar);
+            const signEye = createSafetySign('eyewash', 1.0, 1.0); signEye.position.set(65, 3.5, 0.11); currentScenarioGroup.add(signEye);
+            const signDir = createSafetySign('direction', 2.0, 1.0); signDir.position.set(12, 5.0, 6); currentScenarioGroup.add(signDir);
+        }
+
         function switchScenario(scenarioId) {
-            document.getElementById('btn-scen-1').className = "w-1/2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-1.5 rounded shadow transition text-sm";
-            document.getElementById('btn-scen-2').className = "w-1/2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-1.5 rounded shadow transition text-sm";
-            document.getElementById('btn-scen-' + scenarioId).className = "w-1/2 bg-blue-600 text-white font-semibold py-1.5 rounded shadow transition text-sm";
+            document.getElementById('btn-scen-1').className = "w-1/3 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-1.5 rounded shadow transition text-sm";
+            document.getElementById('btn-scen-2').className = "w-1/3 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-1.5 rounded shadow transition text-sm";
+            document.getElementById('btn-scen-3').className = "w-1/3 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-1.5 rounded shadow transition text-sm";
+            document.getElementById('btn-scen-' + scenarioId).className = "w-1/3 bg-blue-600 text-white font-semibold py-1.5 rounded shadow transition text-sm";
 
             // Bersihkan objek dari skenario sebelumnya
             while(currentScenarioGroup.children.length > 0) {
@@ -1295,6 +2207,7 @@
             // Bangun skenario baru
             if (scenarioId === 1) buildSkenario1();
             if (scenarioId === 2) buildSkenario2();
+            if (scenarioId === 3) buildSkenario3();
         }
 
         function onWindowResize() {
